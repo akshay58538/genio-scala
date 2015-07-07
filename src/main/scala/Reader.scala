@@ -22,9 +22,7 @@ package com.paypal.genio
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import org.json4s.JsonAST.{JNothing, JField, JValue}
 import org.json4s.native.JsonParser
-import org.yaml.snakeyaml.Yaml
 
 import scala.io.Source
 
@@ -66,6 +64,42 @@ class Reader{
       None
   }
 
+  def resolveRef (parsedSpec:Map[String, Any]) = {
+    var spec = parsedSpec
+    var schemas = spec.get("schemas").get.asInstanceOf[Map[String, Any]]
+    var resolvedSchema = resolveSchemas(schemas, "$ref", schemas)
+    spec -= "schemas"
+    spec += ("schemas" -> resolvedSchema)
+    println("final:")
+    println(spec)
+  }
+
+  def resolveSchemas (spec: Map[String, Any], keys : String, schemas : Map[String, Any]):Map[String, Any] = {
+    var specs = spec
+    specs.foreach { case (k, v) =>
+      var reference = k
+      if ( k == keys)
+      {
+        reference = specs.get(keys).get.asInstanceOf[String]
+        specs -= keys
+        if (schemas.contains(reference)) {
+          specs += (reference -> schemas.get(reference).get.asInstanceOf[Map[String,Any]])
+        }
+      }
+      val value = specs.get(reference).get
+      var changedSpec:Map[String, Any] = null
+      value match {
+          case m: Map[String, Any] => {
+            changedSpec = resolveSchemas(value.asInstanceOf[Map[String, Any]], keys, schemas)
+            specs -= reference
+            specs += (reference -> changedSpec)
+          }
+          case _ => value.asInstanceOf[String]
+      }
+    }
+    (specs)
+  }
+
   def specType(fileName:String) = {
     val (specFormat, fileContent:String) = readFile(fileName)
     var parsedSpec:Map[String, Any] = null
@@ -74,6 +108,7 @@ class Reader{
       case SpecFormatYAML => parsedSpec = parseYaml(fileContent)
       case _ => None
     }
+    resolveRef(parsedSpec)
     (findSpecType(parsedSpec), parsedSpec)
   }
 }

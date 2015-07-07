@@ -6,7 +6,7 @@ package com.paypal.genio
 object Main extends App {
   implicit val formats = org.json4s.DefaultFormats
   var r = new Reader()
-  r.specType("/swagger.json") match {
+  r.specType("/gdd.json") match {
     case (SpecTypeGDD, parsedSpec) => {
       val gddService = new ServiceGDD(parsedSpec)
       val serviceName = gddService.serviceName()
