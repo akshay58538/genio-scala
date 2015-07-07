@@ -16,6 +16,7 @@ info:
     url: http://www.apache.org/licenses/LICENSE-2.0.html
 host: petstore.swagger.wordnik.com
 basePath: /v2
+test: 2
 schemes:
   - http
 paths:

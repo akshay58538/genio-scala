@@ -25,9 +25,9 @@ class ServiceGDD(parsedSpec: Map[String, Any]) extends Service {
 
   override def schemas(): Map[String, Schema] = ???
 
-  override def servicePath(): String = parsedSpec.get("servicePath").get.asInstanceOf[String]
+  override def servicePath(): String = Utils.readMapEntity(parsedSpec, "servicePath")
 
-  override def serviceRoot(): String = parsedSpec.get("rootUrl").get.asInstanceOf[String]
+  override def serviceRoot(): String = Utils.readMapEntity(parsedSpec, "rootUrl")
 }
 
 class ServiceSwagger(parsedSpec: Map[String, Any]) extends Service {
@@ -37,7 +37,7 @@ class ServiceSwagger(parsedSpec: Map[String, Any]) extends Service {
 
   override def schemas(): Map[String, Parameter] = ???
 
-  override def servicePath():String = parsedSpec.get("basePath").get.asInstanceOf[String]
+  override def servicePath():String = Utils.readMapEntity(parsedSpec, "basePath")
 
-  override def serviceRoot():String = parsedSpec.get("host").get.asInstanceOf[String]
+  override def serviceRoot():String = Utils.readMapEntity(parsedSpec, "host")
 }
