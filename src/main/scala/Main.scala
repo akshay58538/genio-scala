@@ -4,7 +4,6 @@ package com.paypal.genio
  * Created by akgoel on 03/07/15.
  */
 object Main extends App {
-  implicit val formats = org.json4s.DefaultFormats
   var r = new Reader()
   r.specType("/swagger.yaml") match {
     case (SpecTypeGDD, parsedSpec) => {
