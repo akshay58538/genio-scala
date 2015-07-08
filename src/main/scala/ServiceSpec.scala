@@ -128,6 +128,32 @@ class Resource(
   }
 }
 
+trait ServiceSpecProcessor{
+  var spec: Map[String, Any] = null
+
+  def readMapEntity[T >: Null](key:String) = {
+    Utils.readMapEntity[T](spec, key)
+  }
+
+  def readArrayEntity[T >: Null](key:String, index:Int) = {
+    Utils.readMapArrayEntity[T](spec, key, index)
+  }
+
+  def process() = {
+    processServiceName()
+    processServiceBasePath()
+    processServiceRootUrl()
+    processSchemas()
+    processResources()
+  }
+
+  def processServiceName()
+  def processServiceBasePath()
+  def processServiceRootUrl()
+  def processSchemas()
+  def processResources()
+}
+
 trait ServiceSpec{
   var name:String = null
   var basePath:String = null
