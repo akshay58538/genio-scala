@@ -22,9 +22,7 @@ package com.paypal.genio
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import org.json4s.JsonAST.{JNothing, JField, JValue}
 import org.json4s.native.JsonParser
-import org.yaml.snakeyaml.Yaml
 
 import scala.io.Source
 
