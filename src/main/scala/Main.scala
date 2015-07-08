@@ -7,12 +7,12 @@ object Main extends App {
   var r = new Reader()
   r.readSpec("/swagger.yaml") match {
     case (SpecTypeGDD, parsedSpec) => {
-      val gddService = new ServiceGDD(parsedSpec)
+      val gddService = new SpecGDD(parsedSpec)
       val serviceName = gddService.serviceName()
       println(serviceName)
     }
     case (SpecTypeSwagger, parsedSpec) => {
-      val swaggerService = new ServiceSwagger(parsedSpec)
+      val swaggerService = new SpecSwagger(parsedSpec)
       val serviceName = swaggerService.serviceName()
       println(serviceName)
     }
