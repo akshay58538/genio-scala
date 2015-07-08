@@ -131,11 +131,11 @@ class Resource(
 trait ServiceSpecProcessor{
   var spec: Map[String, Any] = null
 
-  def readMapEntity[T >: Null](key:String) = {
+  def readMapEntity[T](key:String) = {
     Utils.readMapEntity[T](spec, key)
   }
 
-  def readArrayEntity[T >: Null](key:String, index:Int) = {
+  def readArrayEntity[T](key:String, index:Int) = {
     Utils.readMapArrayEntity[T](spec, key, index)
   }
 
@@ -183,6 +183,10 @@ trait ServiceSpec{
 
   def removeResource(resourceKey: ResourceKey) ={
     resources.remove(resourceKey)
+  }
+
+  override def toString: String = {
+    "ServiceName: " + name + "\nServiceRoot: " + rootUrl + "\nServiceBasePath: " + basePath + "\nSchemas: " + schemas + "\nResources: " + resources
   }
 }
 

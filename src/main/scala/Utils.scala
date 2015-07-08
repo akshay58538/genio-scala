@@ -1,7 +1,5 @@
 package com.paypal.genio
 
-import java.util.NoSuchElementException
-
 /**
  * Created by akgoel on 07/07/15.
  */
@@ -35,6 +33,7 @@ object Utils {
       case simpleKey => {
         val value = map.get(simpleKey).get
         value match {
+          case m:T => Option(value.asInstanceOf[T])
           case m: Map[String, Any] => readMapEntity[T](m, keyIterator)
           case _ => Option(value.asInstanceOf[T])
         }

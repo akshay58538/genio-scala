@@ -12,7 +12,12 @@ class SpecGDD(parsedSpec: Map[String, Any]) extends ServiceSpec with ServiceSpec
   override def processServiceBasePath(): Unit = basePath = if (readMapEntity("basePath") != None) readMapEntity("basePath").get else readMapEntity("servicePath").get
 
   override def processSchemas(): Unit = {
+    val schemaMap:Map[String, Any] = readMapEntity("schemas").get
+    schemaMap.foreach {
+      case(key, value) => {
 
+      }
+    }
   }
 
   override def processResources(): Unit = {

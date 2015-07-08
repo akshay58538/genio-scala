@@ -5,16 +5,14 @@ package com.paypal.genio
  */
 object Main extends App {
   var r = new Reader()
-  r.readSpec("/swagger.yaml") match {
+  r.readSpec("/gdd.json") match {
     case (SpecTypeGDD, parsedSpec) => {
       val gddService = new SpecGDD(parsedSpec)
-      val serviceName = gddService.name
-      println(serviceName)
+      println(gddService)
     }
     case (SpecTypeSwagger, parsedSpec) => {
       val swaggerService = new SpecSwagger(parsedSpec)
-      val serviceName = swaggerService.name
-      println(serviceName)
+      println(swaggerService)
     }
     case (_, _) => {
       println("Invalid Input")
