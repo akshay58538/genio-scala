@@ -15,7 +15,7 @@ class SpecGDD(parsedSpec: Map[String, Any]) extends ServiceSpec with ServiceSpec
     val schemaMap:Map[String, Any] = readMapEntity("schemas").get
     schemaMap.foreach {
       case(key, value) => {
-
+        println(SchemaUtils.search(schemaMap, key).get)
       }
     }
   }

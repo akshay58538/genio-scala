@@ -1,5 +1,8 @@
 package com.paypal.genio
 
+import scala.collection.immutable.HashMap
+import scala.collection.mutable
+
 /**
  * Created by akgoel on 07/07/15.
  */
@@ -9,7 +12,7 @@ object Utils {
     For eg: "info.contact.name", "paths./pets.post.parameters#0.name" etc
     Use dot(.) notation to access sub-objects and hash(#) to access arrays
    */
-  def readMapEntity[T](map:Map[String, Any], accessKey:String) : Option[T] = {
+  def readMapEntity[T](map:Map[String, Any], accessKey:String): Option[T] = {
     val keyIterator = accessKey.split("""\.""").toIterator
     try {
       readMapEntity[T](map, keyIterator)
@@ -18,7 +21,7 @@ object Utils {
     }
   }
 
-  def readMapEntity[T](map:Map[String, Any], keyIterator:Iterator[String]) : Option[T] = {
+  def readMapEntity[T](map:Map[String, Any], keyIterator:Iterator[String]): Option[T] = {
     val key = keyIterator.next()
     key match {
       case variableKey if variableKey.contains("#") => {
@@ -41,79 +44,57 @@ object Utils {
     }
   }
 
-  def readMapArrayEntity[T](map:Map[String, Any], arrayKey:String, index:Int) : Option[T] = {
+  def readMapArrayEntity[T](map:Map[String, Any], arrayKey:String, index:Int): Option[T] = {
     try{
       Option(map.get(arrayKey).get.asInstanceOf[List[T]](index))
     } catch {
       case _:Throwable => None
     }
   }
+}
 
-  def resolveSchemas (spec: Map[String, Any], key : String, map : Map[String, Any]):Map[String, Any] = {
-    var specs = spec
-    var changed:Boolean = false
-    specs.foreach { case (k, v) =>
-      var reference = k
-      var value = specs.get(reference).get
-      if ( k == key)
-      {
-        reference = specs.get(key).get.asInstanceOf[String]
-        val (found:Boolean, spec:Any) = searchKey(reference,map)
-        if (found) {
-          changed = true
-          specs -= key
-          value = spec.asInstanceOf[Map[String,Any]]
-        }
-      }
-      var changedSpec:Map[String, Any] = null
-      value match {
-        case m: Map[String, Any] => {
-          changedSpec = resolveSchemas(value.asInstanceOf[Map[String, Any]], key, map)
-          if (changed) {
-            changedSpec.foreach{ case (keys, values) =>
-              specs += (keys -> values)
+object SchemaUtils{
+  def resolveSchemaRefs(map:Map[String, Any], schema:Map[String, Any]): Option[Map[String, Any]] ={
+    var mSchema = new mutable.HashMap[String, Any] ++ schema
+    val keyRef = "$ref"
+    mSchema.foreach {
+      case (k, v) => {
+        if (k == keyRef) {
+          val referredSchema = search(map, v.asInstanceOf[String])
+          referredSchema match {
+            case Some(value) => {
+              mSchema.remove(k)
+              mSchema ++= value
             }
-          } else {
-            specs -= reference
-            specs += (reference -> changedSpec)
+            case None => //Raise invalid schema ref exception here
+          }
+        } else {
+          v match {
+            case m:Map[String, Any] => mSchema.put(k, resolveSchemaRefs(map, m).get)
+            case _ => v
           }
         }
-        case l: List[String] => value.asInstanceOf[List[String]]
-        case b: Boolean => value.asInstanceOf[Boolean]
-        case _ => value.asInstanceOf[String]
       }
     }
-    (specs)
+    Option(new HashMap[String, Any] ++ mSchema)
   }
 
-  def searchKey (key : String, map : Map[String, Any]): (Boolean, Any) = {
-    var found:Boolean = false
-    var value:Any = null
-    map.foreach { case (k, v) =>
-      if (k == key) {
-        value = map.get(key).get.asInstanceOf[Map[String,Any]]
-        found = true
+  def searchSchema (map:Map[String, Any], schemaKey:SchemaKey): Option[Map[String, Any]] ={
+    map.foreach{ case (k, v) =>
+      if (k == schemaKey) {
+        return Utils.readMapEntity(map, schemaKey)
       } else {
         v match {
-          case m: Map[String, Any] => {
-            var (foundInSubMap, valueFound) = searchKey(key,v.asInstanceOf[Map[String, Any]])
-            if (foundInSubMap) {
-              found = true
-              value = valueFound
-              (found,value)
-            }
-          }
-          case l: List[String] => value = v.asInstanceOf[List[String]]
-          case b: Boolean => value = v.asInstanceOf[Boolean]
-          case _ => value = v.asInstanceOf[String]
+          case m: Map[String, Any] => searchSchema(m, schemaKey)
+          case _ =>
         }
       }
     }
-    (found,value)
+    None
   }
 
-  def searchAndResolve(key:String,parsedSpec:Map[String,Any])={
-    val (found:Boolean, spec:Any) = searchKey(key,parsedSpec)
-    (resolveSchemas(spec.asInstanceOf[Map[String,Any]], "$ref", parsedSpec))
+  def search(schemaMap:Map[String,Any], schemaKey:SchemaKey): Option[Map[String, Any]] ={
+    val schema = searchSchema(schemaMap, schemaKey).get
+    resolveSchemaRefs(schemaMap, schema)
   }
 }
