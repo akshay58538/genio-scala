@@ -70,8 +70,8 @@ class Reader{
     var resolvedSchema = resolveSchemas(schemas, "$ref", schemas)
     spec -= "schemas"
     spec += ("schemas" -> resolvedSchema)
-    println("final:")
-    println(spec)
+    schemas = spec.get("schemas").get.asInstanceOf[Map[String, Any]]
+    var resolvedSpec = resolveSchemas(spec, "$ref", schemas)
   }
 
   def resolveSchemas (spec: Map[String, Any], keys : String, schemas : Map[String, Any]):Map[String, Any] = {
@@ -86,7 +86,7 @@ class Reader{
           specs += (reference -> schemas.get(reference).get.asInstanceOf[Map[String,Any]])
         }
       }
-      val value = specs.get(reference).get
+      var value = specs.get(reference).get
       var changedSpec:Map[String, Any] = null
       value match {
           case m: Map[String, Any] => {
@@ -94,10 +94,38 @@ class Reader{
             specs -= reference
             specs += (reference -> changedSpec)
           }
+          case l: List[String] => value.asInstanceOf[List[String]]
+          case b: Boolean => value.asInstanceOf[Boolean]
           case _ => value.asInstanceOf[String]
       }
     }
     (specs)
+  }
+
+  def searchKey (key : String, map : Map[String, Any]): (Boolean, Any) = {
+    var found:Boolean = false
+    var value:Any = null
+    map.foreach { case (k, v) =>
+        if (k == key) {
+          value = map.get(key).get.asInstanceOf[Map[String,Any]]
+          found = true
+        } else {
+          v match {
+            case m: Map[String, Any] => {
+              var (foundInSubMap, valueFound) = searchKey(key,v.asInstanceOf[Map[String, Any]])
+              if (foundInSubMap) {
+                found = true
+                value = valueFound
+                (found,value)
+              }
+            }
+            case l: List[String] => value = v.asInstanceOf[List[String]]
+            case b: Boolean => value = v.asInstanceOf[Boolean]
+            case _ => value = v.asInstanceOf[String]
+          }
+        }
+    }
+    (found,value)
   }
 
   def specType(fileName:String) = {
@@ -108,7 +136,7 @@ class Reader{
       case SpecFormatYAML => parsedSpec = parseYaml(fileContent)
       case _ => None
     }
-    resolveRef(parsedSpec)
+    println(searchKey("shortUrlClicks",parsedSpec))
     (findSpecType(parsedSpec), parsedSpec)
   }
 }
