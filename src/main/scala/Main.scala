@@ -5,7 +5,7 @@ package com.paypal.genio
  */
 object Main extends App {
   var r = new Reader()
-  r.specType("/swagger.yaml") match {
+  r.readSpec("/swagger.yaml") match {
     case (SpecTypeGDD, parsedSpec) => {
       val gddService = new ServiceGDD(parsedSpec)
       val serviceName = gddService.serviceName()

@@ -41,7 +41,17 @@ case object HttpPatch extends HttpMethod
 case object HttpOptions extends HttpMethod
 case object HttpMethodInvalid extends HttpMethod
 
-class Schema(var schemaType:SchemaType, var format:FormatType = null, var location:SchemaLocation = null, var description:String = "", var required:Boolean = false, var id:String = "", val properties:mutable.Map[String, Property] = new mutable.HashMap[String, Property](), var items:Schema = null){
+class Schema(
+              var schemaType:SchemaType,
+              var format:FormatType = null,
+              var location:SchemaLocation = null,
+              var description:String = "",
+              var required:Boolean = false,
+              var id:String = "",
+              var enum:List[Any] = null,
+              val properties:mutable.Map[String, Property] = new mutable.HashMap[String, Property](),
+              var items:Schema = null
+              ){
   def getProperty(propertyName:String): Option[Property] ={
     properties.get(propertyName)
   }
@@ -55,7 +65,14 @@ class Schema(var schemaType:SchemaType, var format:FormatType = null, var locati
   }
 }
 
-class Method(var id:String, var path:String, httpMethod: HttpMethod, val parameters:mutable.Map[String, Parameter] = new mutable.HashMap[String, Parameter](), var request:Schema, val responses:mutable.Map[Int, Schema] = new mutable.HashMap[Int, Schema]()){
+class Method(
+              var path:String,
+              var httpMethod: HttpMethod,
+              var id:String = "",
+              val parameters:mutable.Map[String, Parameter] = new mutable.HashMap[String, Parameter](),
+              var request:Schema = null,
+              val responses:mutable.Map[Int, Schema] = new mutable.HashMap[Int, Schema]()
+              ){
   def addParameter(name:String, parameter: Parameter): Unit ={
     parameters.put(name, parameter)
   }
@@ -81,7 +98,11 @@ class Method(var id:String, var path:String, httpMethod: HttpMethod, val paramet
   }
 }
 
-class Resource(var path:String, val resources:mutable.Map[ResourceKey, Resource] = new mutable.HashMap[ResourceKey, Resource](), val methods:mutable.Map[MethodKey, Method] = new mutable.HashMap[MethodKey, Method]()){
+class Resource(
+                var path:String,
+                val resources:mutable.Map[ResourceKey, Resource] = new mutable.HashMap[ResourceKey, Resource](),
+                val methods:mutable.Map[MethodKey, Method] = new mutable.HashMap[MethodKey, Method]()
+                ){
   def addSubResource(resourceKey: ResourceKey, resource: Resource): Unit ={
     resources.put(resourceKey, resource)
   }
@@ -107,7 +128,10 @@ class Resource(var path:String, val resources:mutable.Map[ResourceKey, Resource]
   }
 }
 
-object ServiceSpec{
+trait ServiceSpec{
+  var name:String = null
+  var basePath:String = null
+  var rootUrl:String = null
   val schemas:mutable.Map[SchemaKey, Schema] = new mutable.HashMap[SchemaKey, Schema]()
   val resources:mutable.Map[ResourceKey, Resource] = new mutable.HashMap[ResourceKey, Resource]()
 

@@ -66,7 +66,7 @@ class Reader{
       None
   }
 
-  def specType(fileName:String) = {
+  def readSpec(fileName:String) = {
     val (specFormat, fileContent:String) = readFile(fileName)
     var parsedSpec:Map[String, Any] = null
     specFormat match {
