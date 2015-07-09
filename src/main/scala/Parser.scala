@@ -15,7 +15,8 @@ class SpecGDD(parsedSpec: Map[String, Any]) extends ServiceSpec with ServiceSpec
     val schemaMap:Map[String, Any] = readMapEntity("schemas").get
     schemaMap.foreach {
       case(key, value) => {
-        println(SchemaUtils.search(schemaMap, key).get)
+        val schema = search(schemaMap, key).get
+        println(schema)
       }
     }
   }
@@ -24,7 +25,8 @@ class SpecGDD(parsedSpec: Map[String, Any]) extends ServiceSpec with ServiceSpec
 
   }
 
-  spec = parsedSpec
+  override var spec = parsedSpec
+  override var processedSchemas = schemas
   process()
 }
 
@@ -43,6 +45,7 @@ class SpecSwagger(parsedSpec: Map[String, Any]) extends ServiceSpec with Service
 
   }
 
-  spec = parsedSpec
+  override var spec = parsedSpec
+  override var processedSchemas = schemas
   process()
 }

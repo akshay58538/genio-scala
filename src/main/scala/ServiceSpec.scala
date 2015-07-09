@@ -1,5 +1,6 @@
 package com.paypal.genio
 
+import scala.collection.immutable.HashMap
 import scala.collection.mutable
 
 /**
@@ -129,7 +130,8 @@ class Resource(
 }
 
 trait ServiceSpecProcessor{
-  var spec: Map[String, Any] = null
+  var spec: Map[String, Any]
+  var processedSchemas:mutable.Map[SchemaKey, Schema]
 
   def readMapEntity[T](key:String) = {
     Utils.readMapEntity[T](spec, key)
@@ -137,6 +139,50 @@ trait ServiceSpecProcessor{
 
   def readArrayEntity[T](key:String, index:Int) = {
     Utils.readMapArrayEntity[T](spec, key, index)
+  }
+
+  private def resolveSchemaRefs(map:Map[String, Any], schema:Map[String, Any]): Option[Map[String, Any]] ={
+    var mSchema = new mutable.HashMap[String, Any] ++ schema
+    val keyRef = "$ref"
+    mSchema.foreach {
+      case (k, v) => {
+        if (k == keyRef) {
+          val referredSchema = search(map, v.asInstanceOf[String])
+          referredSchema match {
+            case Some(value) => {
+              mSchema.remove(k)
+              mSchema ++= value
+            }
+            case None => //Raise invalid schema ref exception here
+          }
+        } else {
+          v match {
+            case m:Map[String, Any] => mSchema.put(k, resolveSchemaRefs(map, m).get)
+            case _ => v
+          }
+        }
+      }
+    }
+    Option(new HashMap[String, Any] ++ mSchema)
+  }
+
+  private def searchSchema (map:Map[String, Any], schemaKey:SchemaKey): Option[Map[String, Any]] ={
+    map.foreach{ case (k, v) =>
+      if (k == schemaKey) {
+        return Utils.readMapEntity(map, schemaKey)
+      } else {
+        v match {
+          case m: Map[String, Any] => searchSchema(m, schemaKey)
+          case _ =>
+        }
+      }
+    }
+    None
+  }
+
+  def search(schemaMap:Map[String,Any], schemaKey:SchemaKey): Option[Map[String, Any]] ={
+    val schema = searchSchema(schemaMap, schemaKey).get
+    resolveSchemaRefs(schemaMap, schema)
   }
 
   def process() = {
