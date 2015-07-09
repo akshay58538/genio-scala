@@ -1,8 +1,5 @@
 package com.paypal.genio
 
-import scala.collection.immutable.HashMap
-import scala.collection.mutable
-
 /**
  * Created by akgoel on 07/07/15.
  */
@@ -21,7 +18,7 @@ object Utils {
     }
   }
 
-  def readMapEntity[T](map:Map[String, Any], keyIterator:Iterator[String]): Option[T] = {
+  private def readMapEntity[T](map:Map[String, Any], keyIterator:Iterator[String]): Option[T] = {
     val key = keyIterator.next()
     key match {
       case variableKey if variableKey.contains("#") => {

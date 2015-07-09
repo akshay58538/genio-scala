@@ -11,22 +11,15 @@ class SpecGDD(parsedSpec: Map[String, Any]) extends ServiceSpec with ServiceSpec
 
   override def processServiceBasePath(): Unit = basePath = if (readMapEntity("basePath") != None) readMapEntity("basePath").get else readMapEntity("servicePath").get
 
-  override def processSchemas(): Unit = {
-    val schemaMap:Map[String, Any] = readMapEntity("schemas").get
-    schemaMap.foreach {
-      case(key, value) => {
-        val schema = search(schemaMap, key).get
-        println(schema)
-      }
-    }
+  override def processResources(): Unit ={
+
   }
 
-  override def processResources(): Unit = {
-
+  override def schemaMapRef():Map[String, Any] ={
+    readMapEntity[Map[String,Any]]("schemas").get
   }
 
   override var spec = parsedSpec
-  override var processedSchemas = schemas
   process()
 }
 
@@ -37,15 +30,14 @@ class SpecSwagger(parsedSpec: Map[String, Any]) extends ServiceSpec with Service
 
   override def processServiceBasePath(): Unit = basePath = readMapEntity("basePath").get
 
-  override def processSchemas(): Unit = {
-
-  }
-
   override def processResources(): Unit = {
 
   }
 
+  override def schemaMapRef():Map[String, Any] ={
+    readMapEntity[Map[String, Any]]("definitions").get
+  }
+
   override var spec = parsedSpec
-  override var processedSchemas = schemas
   process()
 }

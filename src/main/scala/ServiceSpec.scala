@@ -129,9 +129,8 @@ class Resource(
   }
 }
 
-trait ServiceSpecProcessor{
+trait ServiceSpecProcessor extends ServiceSpec{
   var spec: Map[String, Any]
-  var processedSchemas:mutable.Map[SchemaKey, Schema]
 
   def readMapEntity[T](key:String) = {
     Utils.readMapEntity[T](spec, key)
@@ -139,50 +138,6 @@ trait ServiceSpecProcessor{
 
   def readArrayEntity[T](key:String, index:Int) = {
     Utils.readMapArrayEntity[T](spec, key, index)
-  }
-
-  private def resolveSchemaRefs(map:Map[String, Any], schema:Map[String, Any]): Option[Map[String, Any]] ={
-    var mSchema = new mutable.HashMap[String, Any] ++ schema
-    val keyRef = "$ref"
-    mSchema.foreach {
-      case (k, v) => {
-        if (k == keyRef) {
-          val referredSchema = search(map, v.asInstanceOf[String])
-          referredSchema match {
-            case Some(value) => {
-              mSchema.remove(k)
-              mSchema ++= value
-            }
-            case None => //Raise invalid schema ref exception here
-          }
-        } else {
-          v match {
-            case m:Map[String, Any] => mSchema.put(k, resolveSchemaRefs(map, m).get)
-            case _ => v
-          }
-        }
-      }
-    }
-    Option(new HashMap[String, Any] ++ mSchema)
-  }
-
-  private def searchSchema (map:Map[String, Any], schemaKey:SchemaKey): Option[Map[String, Any]] ={
-    map.foreach{ case (k, v) =>
-      if (k == schemaKey) {
-        return Utils.readMapEntity(map, schemaKey)
-      } else {
-        v match {
-          case m: Map[String, Any] => searchSchema(m, schemaKey)
-          case _ =>
-        }
-      }
-    }
-    None
-  }
-
-  def search(schemaMap:Map[String,Any], schemaKey:SchemaKey): Option[Map[String, Any]] ={
-    val schema = searchSchema(schemaMap, schemaKey).get
-    resolveSchemaRefs(schemaMap, schema)
   }
 
   def process() = {
@@ -196,8 +151,170 @@ trait ServiceSpecProcessor{
   def processServiceName()
   def processServiceBasePath()
   def processServiceRootUrl()
-  def processSchemas()
   def processResources()
+  def schemaMapRef():Map[String, Any]
+
+  def processSchemas(): Unit = {
+    val schemaMap:Map[String, Any] = schemaMapRef()
+    schemaMap.foreach {
+      case(key, value) => {
+        val schema = getSchema(key)
+        schema match {
+          case Some(s) => //Schema already processed
+          case None => {
+            val processedSchema = processSchema(Utils.readMapEntity(schemaMap, key).get)
+            if(!schemas.keySet.contains(key)){
+              addSchema(key, processedSchema)
+            }
+          }
+        }
+      }
+    }
+  }
+
+  def processSchema(schemaMap:Map[String, Any]): Schema ={
+    Utils.readMapEntity[String](schemaMap, "type") match {
+      case Some(sType) => {
+        val schemaType = Mapper.schemaType(sType)
+        val schema = new Schema(schemaType)
+        var format:FormatType = FormatTypeInvalid
+        Utils.readMapEntity[String](schemaMap, "format") match {
+          case Some(formatType) => {
+            format = Mapper.formatType(formatType)
+          }
+          case None => //No format specified
+        }
+        schemaType match {
+          case SchemaTypeArray => {
+            val items = Utils.readMapEntity[Map[String, Any]](schemaMap, "items")
+            items match {
+              case Some(itemsVal) => {
+                itemsVal match {
+                  case itemsValue:Map[String, Any] => {
+                    val itemsSchema = processSubSchema(itemsValue)
+                    schema.items = itemsSchema
+                  }
+                  case _ => //Raise invalid schema definition - Invalid array items
+                }
+              }
+              case None => //Raise invalid schema definition - Missing array items
+            }
+          }
+          case SchemaTypeObject => {
+            val properties = Utils.readMapEntity[Map[String, Any]](schemaMap, "properties")
+            properties match {
+              case Some(propertiesVal) => {
+                propertiesVal match {
+                  case propertiesMap:Map[String, Any] => {
+                    propertiesMap.foreach {
+                      case (propertyName:String, propertyMap:Map[String, Any]) => {
+                        schema.addProperty(propertyName, processSubSchema(propertyMap))
+                      }
+                    }
+                  }
+                  case _ => //Raise invalid schema definiton - Invalid object properties
+                }
+              }
+              case None => //Raise invalid schema definition - Missing object properties
+            }
+          }
+          case SchemaTypeInteger => {
+            format match {
+              case FormatTypeInt32 => schema.format = FormatTypeInt32
+              case FormatTypeUInt32 => schema.format = FormatTypeUInt32
+              case FormatTypeInvalid => //No format specified - Do nothing
+              case _ => //Raise invalid schema definition - Invalid format for type
+            }
+          }
+          case SchemaTypeNumber => {
+            format match {
+              case FormatTypeDouble => schema.format = FormatTypeDouble
+              case FormatTypeFloat => schema.format = FormatTypeFloat
+              case FormatTypeInvalid => //No format specified - Do nothing
+              case _ => //Raise invalid schema definition - Invalid format for type
+            }
+          }
+          case SchemaTypeString => {
+            format match {
+              case FormatTypeByte => schema.format = FormatTypeByte
+              case FormatTypeDate => schema.format = FormatTypeDate
+              case FormatTypeDateTime => schema.format = FormatTypeDateTime
+              case FormatTypeInt64 => schema.format = FormatTypeInt64
+              case FormatTypeUInt64 => schema.format = FormatTypeUInt64
+              case FormatTypeInvalid => //No format specified - Do nothing
+              case _ => //Raise invalid schema definition - Invalid format for type
+            }
+          }
+          case SchemaTypeBoolean => // Do nothing
+          case SchemaTypeInvalid => //Raise invalid schema definition - Invalid Schema Type
+        }
+        processCommonSchemaFields(schemaMap, schema)
+        schema
+      }
+      case None => throw new Exception("Missing Schema Type")//Raise invalid schema definition - Missing type
+    }
+  }
+
+  private def processCommonSchemaFields(schemaMap:Map[String, Any], schema:Schema) ={
+    Utils.readMapEntity[String](schemaMap, "id") match {
+      case Some(id) => {
+        schema.id = id
+      }
+      case None => //No id specified - do nothing
+    }
+    Utils.readMapEntity[String](schemaMap, "location") match {
+      case Some(location) => {
+        schema.location = Mapper.schemaLocation(location)
+      }
+      case None => //No location specified - do nothing
+    }
+    Utils.readMapEntity[String](schemaMap, "description") match {
+      case Some(description) => {
+        schema.description = description
+      }
+      case None => //No location specified - do nothing
+    }
+    Utils.readMapEntity[Boolean](schemaMap, "required") match {
+      case Some(required) => {
+        schema.required = required
+      }
+      case None => //No location specified - do nothing
+    }
+    Utils.readMapEntity[List[Any]](schemaMap, "enum") match {
+      case Some(enum) => {
+        schema.enum = enum
+      }
+      case None => //No location specified - do nothing
+    }
+  }
+
+  private def processSubSchema(subSchemaMap:Map[String, Any]):Schema ={
+    if(containsSchemaRef(subSchemaMap)){
+      val referred = Utils.readMapEntity[String](subSchemaMap, "$ref").get
+      var referredSchema:Schema = null
+      if(schemas.keySet.contains(referred)){
+        referredSchema = getSchema(referred).get
+      } else {
+        val schema = Utils.readMapEntity[Map[String, Any]](schemaMapRef(), referred)
+        schema match {
+          case Some(schemaMap) => {
+            referredSchema = processSchema(schemaMap)
+            addSchema(referred, referredSchema)
+          }
+          case None => throw new Exception("Invalid Schema Definition - Invalid value $ref:" + referred)
+        }
+      }
+      val propertyMapWithoutRef = subSchemaMap - "$ref"
+      processCommonSchemaFields(propertyMapWithoutRef, referredSchema)
+      referredSchema
+    } else {
+      processSchema(subSchemaMap)
+    }
+  }
+
+  private def containsSchemaRef(map:Map[String, Any]):Boolean ={
+    map.keySet.contains("$ref")
+  }
 }
 
 trait ServiceSpec{
