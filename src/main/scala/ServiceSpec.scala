@@ -271,7 +271,21 @@ trait ServiceSpecProcessor extends ServiceSpec{
       if(schemas.keySet.contains(referred)){
         referredSchema = getSchema(referred).get
       } else {
-        val schema = Utils.readMapEntity[Map[String, Any]](schemaMapRef(), referred)
+        var schema:Option[Map[String, Any]] = null
+        referenceType match {
+          case ReferenceInternal => schema = Utils.readMapEntity[Map[String, Any]](schemaMapRef(), referred)
+          case ReferenceExternalFile => {
+            val r = new Reader()
+            val (specFormat, fileContent:String) = r.readFile(referred)
+            specFormat match {
+              case SpecFormatJSON => schema = Option(r.parseJson(fileContent))
+              case SpecFormatYAML => schema = Option(r.parseYaml(fileContent))
+              case _ => None
+            }
+          }
+          case ReferenceExternalURL =>
+          case _ =>
+        }
         schema match {
           case Some(schemaMap) => {
             referredSchema = processSchema(schemaMap)
@@ -296,8 +310,7 @@ trait ServiceSpecProcessor extends ServiceSpec{
     ref match {
       case internal if ref.startsWith("#") => (ReferenceInternal,ref.split("""/""").reverseIterator.next())
       case externalurl if ref.startsWith("http") => (ReferenceExternalURL,ref)
-      case externaljsonfile if ref.endsWith(".json") => (ReferenceExternalFile,ref)
-      case externalyamlfile if ref.endsWith(".yaml") => (ReferenceExternalFile,ref)
+      case externalfile if ref.endsWith(".json")|| ref.endsWith(".yaml") => (ReferenceExternalFile,ref)
       case _ => (ReferenceInternal,ref)
     }
   }
