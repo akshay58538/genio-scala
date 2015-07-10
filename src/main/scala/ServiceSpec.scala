@@ -1,6 +1,5 @@
 package com.paypal.genio
 
-import scala.collection.immutable.HashMap
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
@@ -42,6 +41,11 @@ case object HttpDelete extends HttpMethod
 case object HttpPatch extends HttpMethod
 case object HttpOptions extends HttpMethod
 case object HttpMethodInvalid extends HttpMethod
+
+sealed abstract class Reference
+case object ReferenceInternal extends Reference
+case object ReferenceExternalFile extends Reference
+case object ReferenceExternalURL extends Reference
 
 class Schema(
               var schemaType:SchemaType,
@@ -262,12 +266,26 @@ trait ServiceSpecProcessor extends ServiceSpec{
 
   private def processSubSchema(subSchemaMap:Map[String, Any]):Schema ={
     if(containsSchemaRef(subSchemaMap)){
-      val referred = Utils.readMapEntity[String](subSchemaMap, "$ref").get
+      val (referenceType,referred) = processRef(Utils.readMapEntity[String](subSchemaMap, "$ref").get)
       var referredSchema:Schema = null
       if(schemas.keySet.contains(referred)){
         referredSchema = getSchema(referred).get
       } else {
-        val schema = Utils.readMapEntity[Map[String, Any]](schemaMapRef(), referred)
+        var schema:Option[Map[String, Any]] = null
+        referenceType match {
+          case ReferenceInternal => schema = Utils.readMapEntity[Map[String, Any]](schemaMapRef(), referred)
+          case ReferenceExternalFile => {
+            val r = new Reader()
+            val (specFormat, fileContent:String) = r.readFile(referred)
+            specFormat match {
+              case SpecFormatJSON => schema = Option(r.parseJson(fileContent))
+              case SpecFormatYAML => schema = Option(r.parseYaml(fileContent))
+              case _ => None
+            }
+          }
+          case ReferenceExternalURL =>
+          case _ =>
+        }
         schema match {
           case Some(schemaMap) => {
             referredSchema = processSchema(schemaMap)
@@ -286,6 +304,15 @@ trait ServiceSpecProcessor extends ServiceSpec{
 
   private def containsSchemaRef(map:Map[String, Any]):Boolean ={
     map.keySet.contains("$ref")
+  }
+
+  private def processRef(ref:String):(Reference,String) ={
+    ref match {
+      case internal if ref.startsWith("#") => (ReferenceInternal,ref.split("""/""").reverseIterator.next())
+      case externalurl if ref.startsWith("http") => (ReferenceExternalURL,ref)
+      case externalfile if ref.endsWith(".json")|| ref.endsWith(".yaml") => (ReferenceExternalFile,ref)
+      case _ => (ReferenceInternal,ref)
+    }
   }
 }
 
