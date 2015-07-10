@@ -24,7 +24,7 @@ class SpecGDD(parsedSpec: Map[String, Any]) extends ServiceSpec with ServiceSpec
 }
 
 class SpecSwagger(parsedSpec: Map[String, Any]) extends ServiceSpec with ServiceSpecProcessor{
-  override def processServiceName(): Unit = name = Utils.readMapEntity(readMapEntity("info").get, "title").get
+  override def processServiceName(): Unit = name = readMapEntity("info.title").get
 
   override def processServiceRootUrl(): Unit = rootUrl = readMapEntity("host").get
 

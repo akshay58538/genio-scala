@@ -2,6 +2,7 @@ package com.paypal.genio
 
 import scala.collection.immutable.HashMap
 import scala.collection.mutable
+import scala.reflect.ClassTag
 
 /**
  * Created by akgoel on 03/07/15.
@@ -132,7 +133,7 @@ class Resource(
 trait ServiceSpecProcessor extends ServiceSpec{
   var spec: Map[String, Any]
 
-  def readMapEntity[T](key:String) = {
+  def readMapEntity[T:ClassTag](key:String) = {
     Utils.readMapEntity[T](spec, key)
   }
 
