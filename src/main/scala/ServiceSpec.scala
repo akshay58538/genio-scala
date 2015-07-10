@@ -162,7 +162,7 @@ trait ServiceSpecProcessor extends ServiceSpec{
         schema match {
           case Some(s) => //Schema already processed
           case None => {
-            val processedSchema = processSchema(Utils.readMapEntity(schemaMap, key).get)
+            val processedSchema = processSchema(value.asInstanceOf[Map[String, Any]])
             if(!schemas.keySet.contains(key)){
               addSchema(key, processedSchema)
             }
@@ -173,86 +173,88 @@ trait ServiceSpecProcessor extends ServiceSpec{
   }
 
   def processSchema(schemaMap:Map[String, Any]): Schema ={
-    Utils.readMapEntity[String](schemaMap, "type") match {
-      case Some(sType) => {
-        val schemaType = Mapper.schemaType(sType)
-        val schema = new Schema(schemaType)
-        var format:FormatType = FormatTypeInvalid
-        Utils.readMapEntity[String](schemaMap, "format") match {
-          case Some(formatType) => {
-            format = Mapper.formatType(formatType)
-          }
-          case None => //No format specified
-        }
-        schemaType match {
-          case SchemaTypeArray => {
-            val items = Utils.readMapEntity[Map[String, Any]](schemaMap, "items")
-            items match {
-              case Some(itemsVal) => {
-                itemsVal match {
-                  case itemsValue:Map[String, Any] => {
-                    val itemsSchema = processSubSchema(itemsValue)
-                    schema.items = itemsSchema
-                  }
-                  case _ => //Raise invalid schema definition - Invalid array items
-                }
-              }
-              case None => //Raise invalid schema definition - Missing array items
-            }
-          }
-          case SchemaTypeObject => {
-            val properties = Utils.readMapEntity[Map[String, Any]](schemaMap, "properties")
-            properties match {
-              case Some(propertiesVal) => {
-                propertiesVal match {
-                  case propertiesMap:Map[String, Any] => {
-                    propertiesMap.foreach {
-                      case (propertyName:String, propertyMap:Map[String, Any]) => {
-                        schema.addProperty(propertyName, processSubSchema(propertyMap))
-                      }
-                    }
-                  }
-                  case _ => //Raise invalid schema definiton - Invalid object properties
-                }
-              }
-              case None => //Raise invalid schema definition - Missing object properties
-            }
-          }
-          case SchemaTypeInteger => {
-            format match {
-              case FormatTypeInt32 => schema.format = FormatTypeInt32
-              case FormatTypeUInt32 => schema.format = FormatTypeUInt32
-              case FormatTypeInvalid => //No format specified - Do nothing
-              case _ => //Raise invalid schema definition - Invalid format for type
-            }
-          }
-          case SchemaTypeNumber => {
-            format match {
-              case FormatTypeDouble => schema.format = FormatTypeDouble
-              case FormatTypeFloat => schema.format = FormatTypeFloat
-              case FormatTypeInvalid => //No format specified - Do nothing
-              case _ => //Raise invalid schema definition - Invalid format for type
-            }
-          }
-          case SchemaTypeString => {
-            format match {
-              case FormatTypeByte => schema.format = FormatTypeByte
-              case FormatTypeDate => schema.format = FormatTypeDate
-              case FormatTypeDateTime => schema.format = FormatTypeDateTime
-              case FormatTypeInt64 => schema.format = FormatTypeInt64
-              case FormatTypeUInt64 => schema.format = FormatTypeUInt64
-              case FormatTypeInvalid => //No format specified - Do nothing
-              case _ => //Raise invalid schema definition - Invalid format for type
-            }
-          }
-          case SchemaTypeBoolean => // Do nothing
-          case SchemaTypeInvalid => //Raise invalid schema definition - Invalid Schema Type
-        }
-        processCommonSchemaFields(schemaMap, schema)
-        schema
+    val typeString = Utils.readMapEntity[String](schemaMap, "type")
+    var schemaType:SchemaType = null
+    typeString match {
+      case Some(typeStr) => {
+        schemaType = Mapper.schemaType(typeStr)
       }
-      case None => throw new Exception("Missing Schema Type")//Raise invalid schema definition - Missing type
+      case None => schemaType = SchemaTypeObject
     }
+    val schema = new Schema(schemaType)
+    var format:FormatType = FormatTypeInvalid
+    Utils.readMapEntity[String](schemaMap, "format") match {
+      case Some(formatType) => {
+        format = Mapper.formatType(formatType)
+      }
+      case None => //No format specified
+    }
+    schemaType match {
+      case SchemaTypeArray => {
+        val items = Utils.readMapEntity[Map[String, Any]](schemaMap, "items")
+        items match {
+          case Some(itemsVal) => {
+            itemsVal match {
+              case itemsValue:Map[String, Any] => {
+                val itemsSchema = processSubSchema(itemsValue)
+                schema.items = itemsSchema
+              }
+              case _ => //Raise invalid schema definition - Invalid array items
+            }
+          }
+          case None => //Raise invalid schema definition - Missing array items
+        }
+      }
+      case SchemaTypeObject => {
+        val properties = Utils.readMapEntity[Map[String, Any]](schemaMap, "properties")
+        properties match {
+          case Some(propertiesVal) => {
+            propertiesVal match {
+              case propertiesMap:Map[String, Any] => {
+                propertiesMap.foreach {
+                  case (propertyName:String, propertyMap:Map[String, Any]) => {
+                    schema.addProperty(propertyName, processSubSchema(propertyMap))
+                  }
+                }
+              }
+              case _ => //Raise invalid schema definiton - Invalid object properties
+            }
+          }
+          case None => //Raise invalid schema definition - Missing object properties
+        }
+      }
+      case SchemaTypeInteger => {
+        format match {
+          case FormatTypeInt32 => schema.format = FormatTypeInt32
+          case FormatTypeUInt32 => schema.format = FormatTypeUInt32
+          case FormatTypeInvalid => //No format specified - Do nothing
+          case _ => //Raise invalid schema definition - Invalid format for type
+        }
+      }
+      case SchemaTypeNumber => {
+        format match {
+          case FormatTypeDouble => schema.format = FormatTypeDouble
+          case FormatTypeFloat => schema.format = FormatTypeFloat
+          case FormatTypeInvalid => //No format specified - Do nothing
+          case _ => //Raise invalid schema definition - Invalid format for type
+        }
+      }
+      case SchemaTypeString => {
+        format match {
+          case FormatTypeByte => schema.format = FormatTypeByte
+          case FormatTypeDate => schema.format = FormatTypeDate
+          case FormatTypeDateTime => schema.format = FormatTypeDateTime
+          case FormatTypeInt64 => schema.format = FormatTypeInt64
+          case FormatTypeUInt64 => schema.format = FormatTypeUInt64
+          case FormatTypeInvalid => //No format specified - Do nothing
+          case _ => //Raise invalid schema definition - Invalid format for type
+        }
+      }
+      case SchemaTypeBoolean => // Do nothing
+      case SchemaTypeInvalid => //Raise invalid schema definition - Invalid Schema Type
+    }
+    processCommonSchemaFields(schemaMap, schema)
+    schema
   }
 
   private def processCommonSchemaFields(schemaMap:Map[String, Any], schema:Schema) ={

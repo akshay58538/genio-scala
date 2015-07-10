@@ -33,7 +33,7 @@ object Utils {
       case simpleKey => {
         val value = map.get(simpleKey).get
         value match {
-          case m:T => Option(value.asInstanceOf[T])
+          case v:T => Option(v.asInstanceOf[T])
           case m: Map[String, Any] => readMapEntity[T](m, keyIterator)
           case _ => Option(value.asInstanceOf[T])
         }
