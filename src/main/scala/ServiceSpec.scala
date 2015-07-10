@@ -1,6 +1,7 @@
 package com.paypal.genio
 
 import scala.collection.mutable
+import scala.reflect.ClassTag
 
 /**
  * Created by akgoel on 03/07/15.
@@ -136,7 +137,7 @@ class Resource(
 trait ServiceSpecProcessor extends ServiceSpec{
   var spec: Map[String, Any]
 
-  def readMapEntity[T](key:String) = {
+  def readMapEntity[T:ClassTag](key:String) = {
     Utils.readMapEntity[T](spec, key)
   }
 
@@ -178,21 +179,9 @@ trait ServiceSpecProcessor extends ServiceSpec{
 
   def processSchema(schemaMap:Map[String, Any]): Schema ={
     val typeString = Utils.readMapEntity[String](schemaMap, "type")
-    var schemaType:SchemaType = null
-    typeString match {
-      case Some(typeStr) => {
-        schemaType = Mapper.schemaType(typeStr)
-      }
-      case None => schemaType = SchemaTypeObject
-    }
+    val schemaType:SchemaType = Mapper.schemaType(typeString.getOrElse("default"))
     val schema = new Schema(schemaType)
-    var format:FormatType = FormatTypeInvalid
-    Utils.readMapEntity[String](schemaMap, "format") match {
-      case Some(formatType) => {
-        format = Mapper.formatType(formatType)
-      }
-      case None => //No format specified
-    }
+    val format:FormatType = Mapper.formatType(Utils.readMapEntity(schemaMap, "format").getOrElse("default"))
     schemaType match {
       case SchemaTypeArray => {
         val items = Utils.readMapEntity[Map[String, Any]](schemaMap, "items")
@@ -227,33 +216,9 @@ trait ServiceSpecProcessor extends ServiceSpec{
           case None => //Raise invalid schema definition - Missing object properties
         }
       }
-      case SchemaTypeInteger => {
-        format match {
-          case FormatTypeInt32 => schema.format = FormatTypeInt32
-          case FormatTypeUInt32 => schema.format = FormatTypeUInt32
-          case FormatTypeInvalid => //No format specified - Do nothing
-          case _ => //Raise invalid schema definition - Invalid format for type
-        }
-      }
-      case SchemaTypeNumber => {
-        format match {
-          case FormatTypeDouble => schema.format = FormatTypeDouble
-          case FormatTypeFloat => schema.format = FormatTypeFloat
-          case FormatTypeInvalid => //No format specified - Do nothing
-          case _ => //Raise invalid schema definition - Invalid format for type
-        }
-      }
-      case SchemaTypeString => {
-        format match {
-          case FormatTypeByte => schema.format = FormatTypeByte
-          case FormatTypeDate => schema.format = FormatTypeDate
-          case FormatTypeDateTime => schema.format = FormatTypeDateTime
-          case FormatTypeInt64 => schema.format = FormatTypeInt64
-          case FormatTypeUInt64 => schema.format = FormatTypeUInt64
-          case FormatTypeInvalid => //No format specified - Do nothing
-          case _ => //Raise invalid schema definition - Invalid format for type
-        }
-      }
+      case SchemaTypeInteger => handleFormatForInteger(format, schema)
+      case SchemaTypeNumber => handleFormatForNumber(format, schema)
+      case SchemaTypeString => handleFormatForString(format, schema)
       case SchemaTypeBoolean => // Do nothing
       case SchemaTypeInvalid => //Raise invalid schema definition - Invalid Schema Type
     }
@@ -261,37 +226,42 @@ trait ServiceSpecProcessor extends ServiceSpec{
     schema
   }
 
+  private def handleFormatForInteger(format:FormatType, schema: Schema): Unit ={
+    format match {
+      case FormatTypeInt32 => schema.format = FormatTypeInt32
+      case FormatTypeUInt32 => schema.format = FormatTypeUInt32
+      case FormatTypeInvalid => //No format specified - Do nothing
+      case _ => //Raise invalid schema definition - Invalid format for type
+    }
+  }
+
+  private def handleFormatForNumber(format:FormatType, schema: Schema): Unit ={
+    format match {
+      case FormatTypeDouble => schema.format = FormatTypeDouble
+      case FormatTypeFloat => schema.format = FormatTypeFloat
+      case FormatTypeInvalid => //No format specified - Do nothing
+      case _ => //Raise invalid schema definition - Invalid format for type
+    }
+  }
+
+  private def handleFormatForString(format:FormatType, schema:Schema): Unit ={
+    format match {
+      case FormatTypeByte => schema.format = FormatTypeByte
+      case FormatTypeDate => schema.format = FormatTypeDate
+      case FormatTypeDateTime => schema.format = FormatTypeDateTime
+      case FormatTypeInt64 => schema.format = FormatTypeInt64
+      case FormatTypeUInt64 => schema.format = FormatTypeUInt64
+      case FormatTypeInvalid => //No format specified - Do nothing
+      case _ => //Raise invalid schema definition - Invalid format for type
+    }
+  }
+
   private def processCommonSchemaFields(schemaMap:Map[String, Any], schema:Schema) ={
-    Utils.readMapEntity[String](schemaMap, "id") match {
-      case Some(id) => {
-        schema.id = id
-      }
-      case None => //No id specified - do nothing
-    }
-    Utils.readMapEntity[String](schemaMap, "location") match {
-      case Some(location) => {
-        schema.location = Mapper.schemaLocation(location)
-      }
-      case None => //No location specified - do nothing
-    }
-    Utils.readMapEntity[String](schemaMap, "description") match {
-      case Some(description) => {
-        schema.description = description
-      }
-      case None => //No location specified - do nothing
-    }
-    Utils.readMapEntity[Boolean](schemaMap, "required") match {
-      case Some(required) => {
-        schema.required = required
-      }
-      case None => //No location specified - do nothing
-    }
-    Utils.readMapEntity[List[Any]](schemaMap, "enum") match {
-      case Some(enum) => {
-        schema.enum = enum
-      }
-      case None => //No location specified - do nothing
-    }
+    schema.id = Utils.readMapEntity[String](schemaMap, "id").orNull
+    schema.location = Mapper.schemaLocation(Utils.readMapEntity[String](schemaMap, "location").getOrElse("default"))
+    schema.description = Utils.readMapEntity[String](schemaMap, "description").orNull
+    schema.required = Utils.readMapEntity[Boolean](schemaMap, "required").getOrElse(false)
+    schema.enum = Utils.readMapEntity[List[Any]](schemaMap, "enum").orNull
   }
 
   private def processSubSchema(subSchemaMap:Map[String, Any]):Schema ={
@@ -390,7 +360,7 @@ object Mapper {
     case "boolean" => SchemaTypeBoolean
     case "object" => SchemaTypeObject
     case "array" => SchemaTypeArray
-    case _ => SchemaTypeInvalid
+    case _ => SchemaTypeObject        //Default schema type
   }
 
   def schemaLocation(schemaLocation:String) = schemaLocation match {

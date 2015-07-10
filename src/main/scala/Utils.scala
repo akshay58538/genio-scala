@@ -1,5 +1,7 @@
 package com.paypal.genio
 
+import scala.reflect.{ClassTag, classTag}
+
 /**
  * Created by akgoel on 07/07/15.
  */
@@ -9,7 +11,7 @@ object Utils {
     For eg: "info.contact.name", "paths./pets.post.parameters#0.name" etc
     Use dot(.) notation to access sub-objects and hash(#) to access arrays
    */
-  def readMapEntity[T](map:Map[String, Any], accessKey:String): Option[T] = {
+  def readMapEntity[T:ClassTag](map:Map[String, Any], accessKey:String): Option[T] = {
     val keyIterator = accessKey.split("""\.""").toIterator
     try {
       readMapEntity[T](map, keyIterator)
@@ -18,7 +20,7 @@ object Utils {
     }
   }
 
-  private def readMapEntity[T](map:Map[String, Any], keyIterator:Iterator[String]): Option[T] = {
+  private def readMapEntity[T:ClassTag](map:Map[String, Any], keyIterator:Iterator[String]): Option[T] = {
     val key = keyIterator.next()
     key match {
       case variableKey if variableKey.contains("#") => {
@@ -33,7 +35,7 @@ object Utils {
       case simpleKey => {
         val value = map.get(simpleKey).get
         value match {
-          case v:T => Option(v.asInstanceOf[T])
+          case v:T if classTag[T].runtimeClass.isInstance(v)=> Option(v.asInstanceOf[T])
           case m: Map[String, Any] => readMapEntity[T](m, keyIterator)
           case _ => Option(value.asInstanceOf[T])
         }
