@@ -274,8 +274,8 @@ trait ServiceSpecProcessor extends ServiceSpec{
         var schema:Option[Map[String, Any]] = null
         referenceType match {
           case ReferenceInternal => schema = Utils.readMapEntity[Map[String, Any]](schemaMapRef(), referred)
-          case ReferenceExternalFile => schema = externalFileSchema(referred)
-          case ReferenceExternalURL => schema = externalWebSchema(referred)
+          case ReferenceExternalFile => schema = parseFileSchema(referred)
+          case ReferenceExternalURL => schema = parseWebSchema(referred)
           case _ =>
         }
         schema match {
@@ -294,15 +294,15 @@ trait ServiceSpecProcessor extends ServiceSpec{
     }
   }
 
-  private def externalWebSchema(referred:String):Option[Map[String,Any]]= {
+  private def parseWebSchema(referred:String):Option[Map[String,Any]]= {
     val r = new Reader()
-    val content =r.readWebUrl(referred)
+    val content = r.readWebUrl(referred)
     Option(r.parser(referred,content))
   }
 
-  private def externalFileSchema(referred:String):Option[Map[String, Any]]  = {
+  private def parseFileSchema(referred:String):Option[Map[String, Any]]  = {
     val r = new Reader()
-    val content =r.readFile("/" + referred)
+    val content = r.readFile("/" + referred)
     Option(r.parser(referred,content))
   }
 

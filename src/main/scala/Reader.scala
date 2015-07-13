@@ -36,13 +36,11 @@ case object SpecFormatYAML extends SpecFormat
 
 class Reader{
   def readFile (fileName:String) = {
-    val content = Source.fromURL(getClass.getResource(fileName)).getLines().mkString("\n")
-    (content)
+    Source.fromURL(getClass.getResource(fileName)).getLines().mkString("\n")
   }
 
   def readWebUrl (WbUrl:String) = {
-    val content = Source.fromURL(WbUrl).mkString
-    (content)
+    Source.fromURL(WbUrl).mkString
   }
 
   def specType (fileName:String) = {
@@ -61,7 +59,7 @@ class Reader{
       case SpecFormatYAML => parsedSpec = parseYaml(content)
       case _ => None
     }
-    (parsedSpec)
+    parsedSpec
   }
 
   def parseJson (json:String) = {
