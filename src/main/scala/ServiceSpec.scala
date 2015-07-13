@@ -106,19 +106,19 @@ class Method(
 
 class Resource(
                 var path:String,
-                val resources:mutable.Map[ResourceKey, Resource] = new mutable.HashMap[ResourceKey, Resource](),
+                val subResources:mutable.Map[ResourceKey, Resource] = new mutable.HashMap[ResourceKey, Resource](),
                 val methods:mutable.Map[MethodKey, Method] = new mutable.HashMap[MethodKey, Method]()
                 ){
   def addSubResource(resourceKey: ResourceKey, resource: Resource): Unit ={
-    resources.put(resourceKey, resource)
+    subResources.put(resourceKey, resource)
   }
 
   def getResource(resourceKey: ResourceKey): Option[Resource] ={
-    resources.get(resourceKey)
+    subResources.get(resourceKey)
   }
 
   def removeResource(resourceKey: ResourceKey): Unit ={
-    resources.remove(resourceKey)
+    subResources.remove(resourceKey)
   }
 
   def addMethod(methodKey: MethodKey, method: Method): Unit ={
@@ -158,6 +158,7 @@ trait ServiceSpecProcessor extends ServiceSpec{
   def processServiceRootUrl()
   def processResources()
   def schemaMapRef():Map[String, Any]
+  def resourcesMapRef():Map[String, Any]
 
   def processSchemas(): Unit = {
     val schemaMap:Map[String, Any] = schemaMapRef()
@@ -226,7 +227,7 @@ trait ServiceSpecProcessor extends ServiceSpec{
     schema
   }
 
-  private def handleFormatForInteger(format:FormatType, schema: Schema): Unit ={
+  def handleFormatForInteger(format:FormatType, schema: Schema): Unit ={
     format match {
       case FormatTypeInt32 => schema.format = FormatTypeInt32
       case FormatTypeUInt32 => schema.format = FormatTypeUInt32
@@ -235,7 +236,7 @@ trait ServiceSpecProcessor extends ServiceSpec{
     }
   }
 
-  private def handleFormatForNumber(format:FormatType, schema: Schema): Unit ={
+  def handleFormatForNumber(format:FormatType, schema: Schema): Unit ={
     format match {
       case FormatTypeDouble => schema.format = FormatTypeDouble
       case FormatTypeFloat => schema.format = FormatTypeFloat
@@ -244,7 +245,7 @@ trait ServiceSpecProcessor extends ServiceSpec{
     }
   }
 
-  private def handleFormatForString(format:FormatType, schema:Schema): Unit ={
+  def handleFormatForString(format:FormatType, schema:Schema): Unit ={
     format match {
       case FormatTypeByte => schema.format = FormatTypeByte
       case FormatTypeDate => schema.format = FormatTypeDate
@@ -256,7 +257,7 @@ trait ServiceSpecProcessor extends ServiceSpec{
     }
   }
 
-  private def processCommonSchemaFields(schemaMap:Map[String, Any], schema:Schema) ={
+  def processCommonSchemaFields(schemaMap:Map[String, Any], schema:Schema) ={
     schema.id = Utils.readMapEntity[String](schemaMap, "id").orNull
     schema.location = Mapper.schemaLocation(Utils.readMapEntity[String](schemaMap, "location").getOrElse("default"))
     schema.description = Utils.readMapEntity[String](schemaMap, "description").orNull
@@ -264,7 +265,7 @@ trait ServiceSpecProcessor extends ServiceSpec{
     schema.enum = Utils.readMapEntity[List[Any]](schemaMap, "enum").orNull
   }
 
-  private def processSubSchema(subSchemaMap:Map[String, Any]):Schema ={
+  def processSubSchema(subSchemaMap:Map[String, Any]):Schema ={
     if(containsSchemaRef(subSchemaMap)){
       val (referenceType,referred) = processRef(Utils.readMapEntity[String](subSchemaMap, "$ref").get)
       var referredSchema:Schema = null
@@ -302,11 +303,11 @@ trait ServiceSpecProcessor extends ServiceSpec{
     }
   }
 
-  private def containsSchemaRef(map:Map[String, Any]):Boolean ={
+  def containsSchemaRef(map:Map[String, Any]):Boolean ={
     map.keySet.contains("$ref")
   }
 
-  private def processRef(ref:String):(Reference,String) ={
+  def processRef(ref:String):(Reference,String) ={
     ref match {
       case internal if ref.startsWith("#") => (ReferenceInternal,ref.split("""/""").reverseIterator.next())
       case externalurl if ref.startsWith("http") => (ReferenceExternalURL,ref)
