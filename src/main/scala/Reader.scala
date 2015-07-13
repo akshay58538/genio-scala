@@ -36,12 +36,30 @@ case object SpecFormatYAML extends SpecFormat
 
 class Reader{
   def readFile (fileName:String) = {
-    val content = Source.fromURL(getClass.getResource(fileName)).getLines().mkString("\n")
+    Source.fromURL(getClass.getResource(fileName)).getLines().mkString("\n")
+  }
+
+  def readWebUrl (WbUrl:String) = {
+    Source.fromURL(WbUrl).mkString
+  }
+
+  def specFormat (fileName:String):Option[SpecFormat] = {
     fileName match {
-      case file if file.endsWith("json") => (SpecFormatJSON, content)
-      case file if file.endsWith("yaml") => (SpecFormatYAML, content)
+      case file if file.endsWith("json") => Option(SpecFormatJSON)
+      case file if file.endsWith("yaml") => Option(SpecFormatYAML)
       case _ => None
     }
+  }
+
+  def parser (resourceName:String, content:String) = {
+    var parsedSpec:Map[String, Any] = null
+    val format = specFormat(resourceName).get
+    format match {
+      case SpecFormatJSON => parsedSpec = parseJson(content)
+      case SpecFormatYAML => parsedSpec = parseYaml(content)
+      case _ => None
+    }
+    parsedSpec
   }
 
   def parseJson (json:String) = {
@@ -65,13 +83,8 @@ class Reader{
   }
 
   def readSpec(fileName:String) = {
-    val (specFormat, fileContent:String) = readFile(fileName)
-    var parsedSpec:Map[String, Any] = null
-    specFormat match {
-      case SpecFormatJSON => parsedSpec = parseJson(fileContent)
-      case SpecFormatYAML => parsedSpec = parseYaml(fileContent)
-      case _ => None
-    }
+    val fileContent:String = readFile(fileName)
+    val parsedSpec = parser(fileName, fileContent)
     (findSpecType(parsedSpec), parsedSpec)
   }
 }
