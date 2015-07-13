@@ -95,8 +95,36 @@ class SpecSwagger(parsedSpec: Map[String, Any]) extends ServiceSpec with Service
 
   override def processServiceBasePath(): Unit = basePath = readMapEntity("basePath").get
 
-  override def processResources(): Unit = {
+  override def processResources(): Unit ={
+    val resourcesMap = resourcesMapRef()
+    resourcesMap.foreach{
+      case (resourcePath, resourceMap) => {
+        val (resourceName, resource) = processResource(resourcePath.stripPrefix("/").stripSuffix("/").trim, resourceMap.asInstanceOf[Map[String, Any]])
+        addResource(resourceName, resource)
+      }
+    }
+  }
 
+  def processResource(resourcePath:String, resourceMap:Map[String, Any]): (String, Resource) ={
+    val resourceName = resourcePath.split("/",2)(0)
+    val resource = new Resource(resourceName)
+    if (resourcePath.split("/",2).length>1) {
+      val (subResourceName, subResource) = processResource(resourcePath.split("/",2)(1), resourceMap.asInstanceOf[Map[String, Any]])
+      resource.addSubResource(subResourceName,subResource)
+    } else {
+      resourceMap.foreach {
+        case (methodName, methodMap) => {
+          val method = processMethod(methodMap.asInstanceOf[Map[String, Any]])
+          resource.addMethod(methodName, method)
+        }
+      }
+    }
+    println(resourcePath + " : " + resourcePath.split("/",2)(0) +" : " + resource)
+    (resourceName, resource)
+  }
+
+  def processMethod(methodMap:Map[String, Any]): Method = {
+    
   }
 
   override def schemaMapRef():Map[String, Any] ={
