@@ -260,7 +260,7 @@ trait ServiceSpecProcessor extends ServiceSpec{
     schema.id = Utils.readMapEntity[String](schemaMap, "id").orNull
     schema.location = Mapper.schemaLocation(Utils.readMapEntity[String](schemaMap, "location").getOrElse("default"))
     schema.description = Utils.readMapEntity[String](schemaMap, "description").orNull
-    schema.required = Utils.readMapEntity[Boolean](schemaMap, "required").getOrElse(false)
+//    schema.required = Utils.readMapEntity[Boolean](schemaMap, "required").getOrElse(false)
     schema.enum = Utils.readMapEntity[List[Any]](schemaMap, "enum").orNull
   }
 
@@ -274,16 +274,8 @@ trait ServiceSpecProcessor extends ServiceSpec{
         var schema:Option[Map[String, Any]] = null
         referenceType match {
           case ReferenceInternal => schema = Utils.readMapEntity[Map[String, Any]](schemaMapRef(), referred)
-          case ReferenceExternalFile => {
-            val r = new Reader()
-            val (specFormat, fileContent:String) = r.readFile(referred)
-            specFormat match {
-              case SpecFormatJSON => schema = Option(r.parseJson(fileContent))
-              case SpecFormatYAML => schema = Option(r.parseYaml(fileContent))
-              case _ => None
-            }
-          }
-          case ReferenceExternalURL =>
+          case ReferenceExternalFile => schema = externalFileSchema(referred)
+          case ReferenceExternalURL => schema = externalWebSchema(referred)
           case _ =>
         }
         schema match {
@@ -300,6 +292,18 @@ trait ServiceSpecProcessor extends ServiceSpec{
     } else {
       processSchema(subSchemaMap)
     }
+  }
+
+  private def externalWebSchema(referred:String):Option[Map[String,Any]]= {
+    val r = new Reader()
+    val content =r.readWebUrl(referred)
+    Option(r.parser(referred,content))
+  }
+
+  private def externalFileSchema(referred:String):Option[Map[String, Any]]  = {
+    val r = new Reader()
+    val content =r.readFile("/" + referred)
+    Option(r.parser(referred,content))
   }
 
   private def containsSchemaRef(map:Map[String, Any]):Boolean ={
