@@ -1,5 +1,8 @@
 package com.paypal.genio
 
+import org.json4s._
+import org.json4s.native.Serialization._
+
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
@@ -42,10 +45,13 @@ case object HttpPatch extends HttpMethod
 case object HttpOptions extends HttpMethod
 case object HttpMethodInvalid extends HttpMethod
 
-sealed abstract class Reference
-case object ReferenceInternal extends Reference
-case object ReferenceExternalFile extends Reference
-case object ReferenceExternalURL extends Reference
+sealed abstract class SchemaRefType
+case object SchemaRefTypeCore extends SchemaRefType
+case object SchemaRefTypeParameter extends SchemaRefType
+case object SchemaRefTypeProperty extends SchemaRefType
+case object SchemaRefTypeArrayItem extends SchemaRefType
+case object SchemaRefTypeExternalFile extends SchemaRefType
+case object SchemaRefTypeExternalURL extends SchemaRefType
 
 class Schema(
               var schemaType:SchemaType,
@@ -56,7 +62,7 @@ class Schema(
               var id:String = "",
               var enum:List[Any] = null,
               val properties:mutable.Map[String, Property] = new mutable.HashMap[String, Property](),
-              var items:Schema = null
+              var items:SchemaKey = null
               ){
   def getProperty(propertyName:String): Option[Property] ={
     properties.get(propertyName)
@@ -69,6 +75,11 @@ class Schema(
   def removeProperty(propertyName:String) ={
     properties.remove(propertyName)
   }
+
+  override def toString():String ={
+    implicit val formats = DefaultFormats
+    write(this)
+  }
 }
 
 class Method(
@@ -76,8 +87,8 @@ class Method(
               var httpMethod: HttpMethod,
               var id:String = "",
               val parameters:mutable.Map[String, Parameter] = new mutable.HashMap[String, Parameter](),
-              var request:Schema = null,
-              val responses:mutable.Map[Int, Schema] = new mutable.HashMap[Int, Schema]()
+              var request:SchemaKey = null,
+              val responses:mutable.Map[Int, SchemaKey] = new mutable.HashMap[Int, SchemaKey]()
               ){
   def addParameter(name:String, parameter: Parameter): Unit ={
     parameters.put(name, parameter)
@@ -91,16 +102,21 @@ class Method(
     parameters.remove(name)
   }
 
-  def addResponse(statusCode:Int, response:Schema): Unit ={
+  def addResponse(statusCode:Int, response:SchemaKey): Unit ={
     responses.put(statusCode, response)
   }
 
-  def getResponse(statusCode:Int): Option[Schema] ={
+  def getResponse(statusCode:Int): Option[SchemaKey] ={
     responses.get(statusCode)
   }
 
   def removeResponse(statusCode:Int): Unit ={
     responses.remove(statusCode)
+  }
+
+  override def toString():String ={
+    implicit val formats = DefaultFormats
+    write(this)
   }
 }
 
@@ -131,6 +147,11 @@ class Resource(
 
   def removeMethod(methodKey: MethodKey): Unit ={
     methods.remove(methodKey)
+  }
+
+  override def toString(): String ={
+    implicit val formats = DefaultFormats
+    write(this)
   }
 }
 
@@ -164,21 +185,18 @@ trait ServiceSpecProcessor extends ServiceSpec{
     val schemaMap:Map[String, Any] = schemaMapRef()
     schemaMap.foreach {
       case(key, value) => {
-        val schema = getSchema(key)
+        val schema = getSchema(Utils.keyForSchemaRef(SchemaRefTypeCore, key))
         schema match {
           case Some(s) => //Schema already processed
           case None => {
-            val processedSchema = processSchema(value.asInstanceOf[Map[String, Any]])
-            if(!schemas.keySet.contains(key)){
-              addSchema(key, processedSchema)
-            }
+            processSchema(value.asInstanceOf[Map[String, Any]], SchemaRefTypeCore, key)
           }
         }
       }
     }
   }
 
-  def processSchema(schemaMap:Map[String, Any]): Schema ={
+  def processSchema(schemaMap:Map[String, Any], schemaRefType:SchemaRefType, suggestedKey:SchemaKey): SchemaKey ={
     val typeString = Utils.readMapEntity[String](schemaMap, "type")
     val schemaType:SchemaType = Mapper.schemaType(typeString.getOrElse("default"))
     val schema = new Schema(schemaType)
@@ -189,10 +207,7 @@ trait ServiceSpecProcessor extends ServiceSpec{
         items match {
           case Some(itemsVal) => {
             itemsVal match {
-              case itemsValue:Map[String, Any] => {
-                val itemsSchema = processSubSchema(itemsValue)
-                schema.items = itemsSchema
-              }
+              case itemsValue:Map[String, Any] => schema.items = processSubSchema(itemsValue, SchemaRefTypeArrayItem, suggestedKey)
               case _ => //Raise invalid schema definition - Invalid array items
             }
           }
@@ -207,7 +222,8 @@ trait ServiceSpecProcessor extends ServiceSpec{
               case propertiesMap:Map[String, Any] => {
                 propertiesMap.foreach {
                   case (propertyName:String, propertyMap:Map[String, Any]) => {
-                    schema.addProperty(propertyName, processSubSchema(propertyMap))
+                    val propertyKey = suggestedKey + "-" + propertyName
+                    schema.addProperty(propertyKey, processSubSchema(propertyMap, SchemaRefTypeProperty, propertyKey))
                   }
                 }
               }
@@ -223,8 +239,10 @@ trait ServiceSpecProcessor extends ServiceSpec{
       case SchemaTypeBoolean => // Do nothing
       case SchemaTypeInvalid => //Raise invalid schema definition - Invalid Schema Type
     }
-    processCommonSchemaFields(schemaMap, schema)
-    schema
+    val schemaKey:SchemaKey = Utils.keyForSchemaRef(schemaRefType, suggestedKey)
+    addSchema(schemaKey, schema)
+    processCommonSchemaFields(schemaMap, schemaKey)
+    schemaKey
   }
 
   def handleFormatForInteger(format:FormatType, schema: Schema): Unit ={
@@ -257,7 +275,8 @@ trait ServiceSpecProcessor extends ServiceSpec{
     }
   }
 
-  def processCommonSchemaFields(schemaMap:Map[String, Any], schema:Schema) ={
+  def processCommonSchemaFields(schemaMap:Map[String, Any], schemaKey:SchemaKey) ={
+    val schema:Schema = getSchema(schemaKey).get
     schema.id = Utils.readMapEntity[String](schemaMap, "id").orNull
     schema.location = Mapper.schemaLocation(Utils.readMapEntity[String](schemaMap, "location").getOrElse("default"))
     schema.description = Utils.readMapEntity[String](schemaMap, "description").orNull
@@ -265,33 +284,22 @@ trait ServiceSpecProcessor extends ServiceSpec{
     schema.enum = Utils.readMapEntity[List[Any]](schemaMap, "enum").orNull
   }
 
-  def processSubSchema(subSchemaMap:Map[String, Any]):Schema ={
+  def processSubSchema(subSchemaMap:Map[String, Any], schemaRefType: SchemaRefType, suggestedKey:SchemaKey):SchemaKey ={
     if(containsSchemaRef(subSchemaMap)){
-      val (referenceType,referred) = processRef(Utils.readMapEntity[String](subSchemaMap, "$ref").get)
-      var referredSchema:Schema = null
-      if(schemas.keySet.contains(referred)){
-        referredSchema = getSchema(referred).get
-      } else {
-        var schema:Option[Map[String, Any]] = null
+      val (referenceType, referred) = processRef(Utils.readMapEntity[String](subSchemaMap, "$ref").get)
+      val schemaKey = Utils.keyForSchemaRef(referenceType, referred)
+      if(!schemas.keySet.contains(schemaKey)){
         referenceType match {
-          case ReferenceInternal => schema = Utils.readMapEntity[Map[String, Any]](schemaMapRef(), referred)
-          case ReferenceExternalFile => schema = parseFileSchema(referred)
-          case ReferenceExternalURL => schema = parseWebSchema(referred)
-          case _ =>
-        }
-        schema match {
-          case Some(schemaMap) => {
-            referredSchema = processSchema(schemaMap)
-            addSchema(referred, referredSchema)
-          }
-          case None => throw new Exception("Invalid Schema Definition - Invalid value $ref:" + referred)
+          case SchemaRefTypeCore => processSchema(Utils.readMapEntity[Map[String, Any]](schemaMapRef(), referred).get, SchemaRefTypeCore, referred)
+          case SchemaRefTypeExternalFile => processSchema(parseFileSchema(referred).get, SchemaRefTypeExternalFile, referred)
+          case SchemaRefTypeExternalURL => processSchema(parseWebSchema(referred).get, SchemaRefTypeExternalURL, referred)
+          case _ => throw new Exception("Invalid Schema Definition - Invalid value $ref:" + referred)
         }
       }
-      val propertyMapWithoutRef = subSchemaMap - "$ref"
-      processCommonSchemaFields(propertyMapWithoutRef, referredSchema)
-      referredSchema
+      processCommonSchemaFields(subSchemaMap, schemaKey)
+      schemaKey
     } else {
-      processSchema(subSchemaMap)
+      processSchema(subSchemaMap, schemaRefType, suggestedKey)
     }
   }
 
@@ -311,12 +319,12 @@ trait ServiceSpecProcessor extends ServiceSpec{
     map.keySet.contains("$ref")
   }
 
-  def processRef(ref:String):(Reference,String) ={
+  def processRef(ref:String):(SchemaRefType, String) ={
     ref match {
-      case internal if ref.startsWith("#") => (ReferenceInternal,ref.split("""/""").reverseIterator.next())
-      case externalurl if ref.startsWith("http") => (ReferenceExternalURL,ref)
-      case externalfile if ref.endsWith(".json")|| ref.endsWith(".yaml") => (ReferenceExternalFile,ref)
-      case _ => (ReferenceInternal,ref)
+      case internal if ref.startsWith("#") => (SchemaRefTypeCore, internal.split('/').reverseIterator.next())
+      case externalUrl if ref.startsWith("http") => (SchemaRefTypeExternalURL, externalUrl)
+      case externalFile if ref.endsWith(".json") || ref.endsWith(".yaml") => (SchemaRefTypeExternalFile, externalFile)
+      case _ => (SchemaRefTypeCore, ref)
     }
   }
 }
@@ -353,7 +361,8 @@ trait ServiceSpec{
   }
 
   override def toString: String = {
-    "ServiceName: " + name + "\nServiceRoot: " + rootUrl + "\nServiceBasePath: " + basePath + "\nSchemas: " + schemas + "\nResources: " + resources
+    implicit val formats = DefaultFormats
+    "ServiceName: " + name + "\nServiceRoot: " + rootUrl + "\nServiceBasePath: " + basePath + "\nSchemas: " + write(schemas) + "\nResources: " + write(resources)
   }
 }
 
