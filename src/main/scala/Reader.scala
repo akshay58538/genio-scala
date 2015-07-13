@@ -43,17 +43,17 @@ class Reader{
     Source.fromURL(WbUrl).mkString
   }
 
-  def specFormat (fileName:String) = {
+  def specFormat (fileName:String):Option[SpecFormat] = {
     fileName match {
-      case file if file.endsWith("json") => SpecFormatJSON
-      case file if file.endsWith("yaml") => SpecFormatYAML
+      case file if file.endsWith("json") => Option(SpecFormatJSON)
+      case file if file.endsWith("yaml") => Option(SpecFormatYAML)
       case _ => None
     }
   }
 
   def parser (resourceName:String, content:String) = {
     var parsedSpec:Map[String, Any] = null
-    val format = specFormat(resourceName)
+    val format = specFormat(resourceName).get
     format match {
       case SpecFormatJSON => parsedSpec = parseJson(content)
       case SpecFormatYAML => parsedSpec = parseYaml(content)
