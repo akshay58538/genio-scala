@@ -42,8 +42,8 @@ class SpecGDD(parsedSpec: Map[String, Any]) extends ServiceSpec with ServiceSpec
     val parameterMap = Utils.readMapEntity[Map[String, Any]](methodMap, "parameters").getOrElse(new HashMap[String, Any])
     parameterMap.foreach{
       case (parameterName, parameterMap) => {
-        val parameter = processSubSchema(parameterMap.asInstanceOf[Map[String, Any]])
-        method.addParameter(parameterName, parameter)
+        val parameterKey = processSubSchema(parameterMap.asInstanceOf[Map[String, Any]], SchemaRefTypeParameter, parameterName)
+        method.addParameter(parameterName, parameterKey)
       }
     }
     val responseMap = Utils.readMapEntity[Map[String, Any]](methodMap, "response")
@@ -62,16 +62,16 @@ class SpecGDD(parsedSpec: Map[String, Any]) extends ServiceSpec with ServiceSpec
     method
   }
 
-  def processMethodRequest(requestMap:Option[Map[String, Any]]) : Option[Schema] ={
+  def processMethodRequest(requestMap:Option[Map[String, Any]]) : Option[SchemaKey] ={
     requestMap match {
-      case Some(map) => Option(processSubSchema(map))
+      case Some(map) => Option(processSubSchema(map, SchemaRefTypeCore, null))
       case None => None
     }
   }
 
-  def processMethodResponse(responseMap:Option[Map[String, Any]]): Option[Schema] = {
+  def processMethodResponse(responseMap:Option[Map[String, Any]]): Option[SchemaKey] = {
     responseMap match {
-      case Some(map) => Option(processSubSchema(map.asInstanceOf[Map[String, Any]]))
+      case Some(map) => Option(processSubSchema(map.asInstanceOf[Map[String, Any]], SchemaRefTypeCore, null))
       case None => None
     }
   }

@@ -1,6 +1,7 @@
 package com.paypal.genio
 
 import scala.reflect.{ClassTag, classTag}
+import scala.util.Random
 
 /**
  * Created by akgoel on 07/07/15.
@@ -12,7 +13,7 @@ object Utils {
     Use dot(.) notation to access sub-objects and hash(#) to access arrays
    */
   def readMapEntity[T:ClassTag](map:Map[String, Any], accessKey:String): Option[T] = {
-    val keyIterator = accessKey.split("""\.""").toIterator
+    val keyIterator = accessKey.split('.').toIterator
     try {
       readMapEntity[T](map, keyIterator)
     } catch {
@@ -49,5 +50,28 @@ object Utils {
     } catch {
       case _:Throwable => None
     }
+  }
+
+  def keyForSchemaRef(schemaRefType: SchemaRefType, suggestedKey:String): String ={
+    var key = suggestedKey
+    if(key == null || key.isEmpty){
+      key = Random.alphanumeric.take(5).mkString
+    }
+    schemaRefType match {
+      case SchemaRefTypeCore => "S-" + key
+      case SchemaRefTypeArrayItem => "AI-" + key
+      case SchemaRefTypeParameter => "PM-" + key
+      case SchemaRefTypeProperty => "PP-" + key
+      case SchemaRefTypeExternalFile => "EF-" + keyForFileName(key)
+      case SchemaRefTypeExternalURL => "URL-" + keyForWebURL(key)
+    }
+  }
+
+  def keyForFileName(fileName:String) ={
+    fileName.split('.')(0)
+  }
+
+  def keyForWebURL(url:String) ={
+    url.split('/').reverseIterator.next().split('.')(0)
   }
 }
