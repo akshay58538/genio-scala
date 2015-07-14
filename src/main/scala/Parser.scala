@@ -53,6 +53,11 @@ class SpecGDD(parsedSpec: Map[String, Any]) extends ServiceSpec with ServiceSpec
         method.addParameter(parameterName, parameterKey)
       }
     }
+    parametersMapRef().keySet.foreach {
+      case parameterName => {
+        method.addParameter(parameterName, Utils.keyForSchemaRef(SchemaRefTypeParameter, parameterName))
+      }
+    }
     val responseMap = Utils.readMapEntity[Map[String, Any]](methodMap, "response")
     httpMethod match {
       case HttpGet => method.addResponse(200, processMethodResponse(responseMap).orNull)
@@ -83,6 +88,10 @@ class SpecGDD(parsedSpec: Map[String, Any]) extends ServiceSpec with ServiceSpec
     }
   }
 
+  override def processParameter(parameterMap: Map[String, Any], schemaRefType: SchemaRefType, parameterName: String) ={
+    processSubSchema(parameterMap, schemaRefType, parameterName)
+  }
+
   override def schemaMapRef():Map[String, Any] ={
     readMapEntity[Map[String,Any]]("schemas").get
   }
@@ -103,6 +112,10 @@ class SpecSwagger(parsedSpec: Map[String, Any]) extends ServiceSpec with Service
   override def processServiceBasePath(): Unit = basePath = readMapEntity("basePath").get
 
   override def processResources(): Unit = {
+
+  }
+
+  override def processParameter(map: Map[String, Any], schemaRefType: SchemaRefType, parameterName: String) ={
 
   }
 

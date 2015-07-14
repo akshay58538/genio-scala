@@ -171,6 +171,7 @@ trait ServiceSpecProcessor extends ServiceSpec{
     processServiceBasePath()
     processServiceRootUrl()
     processSchemas()
+    processParameters()
     processResources()
   }
 
@@ -180,6 +181,20 @@ trait ServiceSpecProcessor extends ServiceSpec{
   def processResources()
   def schemaMapRef():Map[String, Any]
   def resourcesMapRef():Map[String, Any]
+  def processParameter(map: Map[String, Any], schemaRefType: SchemaRefType, parameterName: String)
+
+  def parametersMapRef():Map[String, Any] ={
+    readMapEntity[Map[String, Any]]("parameters").get
+  }
+
+  def processParameters() ={
+    val parametersMap = parametersMapRef()
+    parametersMap.foreach {
+      case (parameterName, parameterMap) => {
+        processParameter(parameterMap.asInstanceOf[Map[String, Any]], SchemaRefTypeParameter, parameterName)
+      }
+    }
+  }
 
   def processSchemas(): Unit = {
     val schemaMap:Map[String, Any] = schemaMapRef()
