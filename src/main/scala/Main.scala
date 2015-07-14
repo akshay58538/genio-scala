@@ -5,7 +5,7 @@ package com.paypal.genio
  */
 object Main extends App {
   var r = new Reader()
-  r.readSpec("/gdd.json") match {
+  r.readSpec("/swagger.json") match {
     case (SpecTypeGDD, parsedSpec) => {
       val gddService = new SpecGDD(parsedSpec)
       println(gddService)

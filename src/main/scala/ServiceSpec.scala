@@ -223,7 +223,7 @@ trait ServiceSpecProcessor extends ServiceSpec{
                 propertiesMap.foreach {
                   case (propertyName:String, propertyMap:Map[String, Any]) => {
                     val propertyKey = suggestedKey + "-" + propertyName
-                    schema.addProperty(propertyKey, processSubSchema(propertyMap, SchemaRefTypeProperty, propertyKey))
+                    schema.addProperty(propertyName, processSubSchema(propertyMap, SchemaRefTypeProperty, propertyKey))
                   }
                 }
               }

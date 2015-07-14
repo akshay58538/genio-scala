@@ -32,6 +32,13 @@ class SpecGDD(parsedSpec: Map[String, Any]) extends ServiceSpec with ServiceSpec
         resource.addMethod(methodName, method)
       }
     }
+    val subResourcesMap = Utils.readMapEntity[Map[String, Any]](resourceMap.asInstanceOf[Map[String, Any]], "resources").get
+    subResourcesMap.foreach {
+      case (subResourceName, subResourceMap) => {
+        val subResource = processResource(subResourceMap.asInstanceOf[Map[String, Any]])
+        resource.addSubResource(subResourceName, subResource)
+      }
+    }
     resource
   }
 
