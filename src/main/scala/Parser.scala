@@ -99,21 +99,28 @@ class SpecSwagger(parsedSpec: Map[String, Any]) extends ServiceSpec with Service
     val resourcesMap = resourcesMapRef()
     resourcesMap.foreach{
       case (resourcePath, resourceMap) => {
-        val (resourceName, resource) = processResource(resourcePath.stripPrefix("/").stripSuffix("/").trim, resourceMap.asInstanceOf[Map[String, Any]], resourcePath)
+        val (resourceName, resource) = processResource(resourcePath.stripPrefix("/").stripSuffix("/").trim, resourceMap.asInstanceOf[Map[String, Any]], resourcePath, null)
         addResource(resourceName, resource)
       }
     }
   }
 
-  def processResource(resourcePath:String, resourceMap:Map[String, Any], restPath:String): (String, Resource) ={
+  def processResource(resourcePath:String, resourceMap:Map[String, Any], restPath:String, parentResource:Resource): (String, Resource) ={
     val resourceName = "/" + resourcePath.split("/",2)(0)
     var resource:Resource = null
-    getResource(resourceName) match {
-      case Some(r) => resource = getResource(resourceName).get
-      case None => resource = new Resource(resourceName)
+    if (parentResource == null) {
+      getResource(resourceName) match {
+        case Some(r) => resource = getResource(resourceName).get
+        case None => resource = new Resource(resourceName)
+      }
+    } else {
+      parentResource.getResource(resourceName) match {
+        case Some(r) => resource = parentResource.getResource(resourceName).get
+        case None => resource = new Resource(resourceName)
+      }
     }
     if (resourcePath.split("/",2).length>1) {
-      val (subResourceName, subResource) = processResource(resourcePath.split("/",2)(1), resourceMap.asInstanceOf[Map[String, Any]], restPath)
+      val (subResourceName, subResource) = processResource(resourcePath.split("/",2)(1), resourceMap.asInstanceOf[Map[String, Any]], restPath, resource)
       resource.addSubResource(subResourceName,subResource)
     } else {
       resourceMap.foreach {
