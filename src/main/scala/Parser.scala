@@ -99,13 +99,13 @@ class SpecSwagger(parsedSpec: Map[String, Any]) extends ServiceSpec with Service
     val resourcesMap = resourcesMapRef()
     resourcesMap.foreach{
       case (resourcePath, resourceMap) => {
-        val (resourceName, resource) = processResource(resourcePath.stripPrefix("/").stripSuffix("/").trim, resourceMap.asInstanceOf[Map[String, Any]], resourcePath, null)
+        val (resourceName, resource) = processResource(resourcePath.stripPrefix("/").stripSuffix("/").trim, resourceMap.asInstanceOf[Map[String, Any]], null)
         addResource(resourceName, resource)
       }
     }
   }
 
-  def processResource(resourcePath:String, resourceMap:Map[String, Any], restPath:String, parentResource:Resource): (String, Resource) ={
+  def processResource(resourcePath:String, resourceMap:Map[String, Any], parentResource:Resource): (String, Resource) ={
     val resourceName = "/" + resourcePath.split("/",2)(0)
     var resource:Resource = null
     if (parentResource == null) {
@@ -120,12 +120,12 @@ class SpecSwagger(parsedSpec: Map[String, Any]) extends ServiceSpec with Service
       }
     }
     if (resourcePath.split("/",2).length>1) {
-      val (subResourceName, subResource) = processResource(resourcePath.split("/",2)(1), resourceMap.asInstanceOf[Map[String, Any]], restPath, resource)
+      val (subResourceName, subResource) = processResource(resourcePath.split("/",2)(1), resourceMap.asInstanceOf[Map[String, Any]], resource)
       resource.addSubResource(subResourceName,subResource)
     } else {
       resourceMap.foreach {
         case (methodName, methodMap) => {
-          val method = processMethod(methodName, methodMap.asInstanceOf[Map[String, Any]], restPath)
+          val method = processMethod(methodName, methodMap.asInstanceOf[Map[String, Any]])
           resource.addMethod(methodName, method)
         }
       }
@@ -133,8 +133,8 @@ class SpecSwagger(parsedSpec: Map[String, Any]) extends ServiceSpec with Service
     (resourceName, resource)
   }
 
-  def processMethod(methodName: String, methodMap: Map[String, Any], resourcePath:String): Method = {
-    val path = resourcePath;
+  def processMethod(methodName: String, methodMap: Map[String, Any]): Method = {
+    val path = "/";
     val httpMethod = Mapper.httpMethod(methodName.toUpperCase)
     val method = new Method(path, httpMethod)
     val parameterList = Utils.readMapEntity[List[Map[String, Any]]](methodMap, "parameters").getOrElse(List())
