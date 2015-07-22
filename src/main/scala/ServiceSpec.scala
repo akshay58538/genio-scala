@@ -3,6 +3,7 @@ package com.paypal.genio
 import org.json4s._
 import org.json4s.native.Serialization._
 
+import scala.collection.immutable.HashMap
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
@@ -52,6 +53,10 @@ case object SchemaRefTypeProperty extends SchemaRefType
 case object SchemaRefTypeArrayItem extends SchemaRefType
 case object SchemaRefTypeExternalFile extends SchemaRefType
 case object SchemaRefTypeExternalURL extends SchemaRefType
+
+sealed abstract class ResourceRefType
+case object ResourceRefTypeCore extends ResourceRefType
+case object ResourceRefTypeSub extends ResourceRefType
 
 class Schema(
               var schemaType:SchemaType,
@@ -122,15 +127,11 @@ class Method(
 
 class Resource(
                 var path:String,
-                val subResources:mutable.Map[ResourceKey, Resource] = new mutable.HashMap[ResourceKey, Resource](),
+                val subResources:mutable.Set[ResourceKey] = new mutable.HashSet[ResourceKey](),
                 val methods:mutable.Map[MethodKey, Method] = new mutable.HashMap[MethodKey, Method]()
                 ){
-  def addSubResource(resourceKey: ResourceKey, resource: Resource): Unit ={
-    subResources.put(resourceKey, resource)
-  }
-
-  def getResource(resourceKey: ResourceKey): Option[Resource] ={
-    subResources.get(resourceKey)
+  def addSubResource(resourceKey: ResourceKey): Unit ={
+    subResources.add(resourceKey)
   }
 
   def removeResource(resourceKey: ResourceKey): Unit ={
@@ -184,7 +185,7 @@ trait ServiceSpecProcessor extends ServiceSpec{
   def processParameter(map: Map[String, Any], schemaRefType: SchemaRefType, parameterName: String)
 
   def parametersMapRef():Map[String, Any] ={
-    readMapEntity[Map[String, Any]]("parameters").get
+    readMapEntity[Map[String, Any]]("parameters").getOrElse(new HashMap[String, Any]())
   }
 
   def processParameters() ={

@@ -55,7 +55,7 @@ object Utils {
   def keyForSchemaRef(schemaRefType: SchemaRefType, suggestedKey:String): String ={
     var key = suggestedKey
     if(key == null || key.isEmpty){
-      key = Random.alphanumeric.take(5).mkString
+      key = generateKey()
     }
     schemaRefType match {
       case SchemaRefTypeCore => "S-" + key
@@ -65,6 +65,21 @@ object Utils {
       case SchemaRefTypeExternalFile => "EF-" + keyForFileName(key)
       case SchemaRefTypeExternalURL => "URL-" + keyForWebURL(key)
     }
+  }
+
+  def keyForResourceRef(resourceRefType:ResourceRefType, suggestedKey:String): String ={
+    var key = suggestedKey
+    if(key == null || key.isEmpty){
+      key = generateKey()
+    }
+    resourceRefType match {
+      case ResourceRefTypeCore => "R-" + key
+      case ResourceRefTypeSub => "SR-" + key
+    }
+  }
+
+  private def generateKey(): String ={
+    Random.alphanumeric.take(5).mkString
   }
 
   def keyForFileName(fileName:String) ={

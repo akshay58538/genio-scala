@@ -17,13 +17,12 @@ class SpecGDD(parsedSpec: Map[String, Any]) extends ServiceSpec with ServiceSpec
     val resourcesMap = resourcesMapRef()
     resourcesMap.foreach{
       case (resourceName, resourceMap) => {
-        val resource = processResource(resourceMap.asInstanceOf[Map[String, Any]])
-        addResource(resourceName, resource)
+        processResource(resourceMap.asInstanceOf[Map[String, Any]], ResourceRefTypeCore, resourceName)
       }
     }
   }
 
-  def processResource(resourceMap:Map[String, Any]): Resource ={
+  def processResource(resourceMap:Map[String, Any], resourceRefType: ResourceRefType, resourceName:ResourceKey): ResourceKey ={
     val resource = new Resource("/")
     val methodsMap = Utils.readMapEntity[Map[String, Any]](resourceMap.asInstanceOf[Map[String, Any]], "methods").get
     methodsMap.foreach {
@@ -35,11 +34,12 @@ class SpecGDD(parsedSpec: Map[String, Any]) extends ServiceSpec with ServiceSpec
     val subResourcesMap = Utils.readMapEntity[Map[String, Any]](resourceMap.asInstanceOf[Map[String, Any]], "resources").get
     subResourcesMap.foreach {
       case (subResourceName, subResourceMap) => {
-        val subResource = processResource(subResourceMap.asInstanceOf[Map[String, Any]])
-        resource.addSubResource(subResourceName, subResource)
+        resource.addSubResource(processResource(subResourceMap.asInstanceOf[Map[String, Any]], ResourceRefTypeSub, subResourceName))
       }
     }
-    resource
+    val resourceKey = Utils.keyForResourceRef(resourceRefType, resourceName)
+    addResource(resourceKey, resource)
+    resourceKey
   }
 
   def processMethod(methodMap:Map[String, Any]): Method = {
