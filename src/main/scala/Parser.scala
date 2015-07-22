@@ -111,8 +111,84 @@ class SpecSwagger(parsedSpec: Map[String, Any]) extends ServiceSpec with Service
 
   override def processServiceBasePath(): Unit = basePath = readMapEntity("basePath").get
 
-  override def processResources(): Unit = {
+  override def processResources(): Unit ={
+    val resourcesMap = resourcesMapRef()
+    resourcesMap.foreach{
+      case (resourcePath, resourceMap) => {
+        val (resourceName, resource) = processResource(resourcePath.stripPrefix("/").stripSuffix("/").trim, resourceMap.asInstanceOf[Map[String, Any]], null)
+        addResource(resourceName, resource)
+      }
+    }
+  }
 
+  def processResource(resourcePath:String, resourceMap:Map[String, Any], parentResource:Resource): (String, Resource) ={
+    val resourceName = "/" + resourcePath.split("/",2)(0)
+    var resource:Resource = null
+    if (parentResource == null) {
+      getResource(resourceName) match {
+        case Some(r) => resource = getResource(resourceName).get
+        case None => resource = new Resource(resourceName)
+      }
+    } else {
+      parentResource.getResource(resourceName) match {
+        case Some(r) => resource = parentResource.getResource(resourceName).get
+        case None => resource = new Resource(resourceName)
+      }
+    }
+    if (resourcePath.split("/",2).length>1) {
+      val (subResourceName, subResource) = processResource(resourcePath.split("/",2)(1), resourceMap.asInstanceOf[Map[String, Any]], resource)
+      resource.addSubResource(subResourceName,subResource)
+    } else {
+      resourceMap.foreach {
+        case (methodName, methodMap) => {
+          val method = processMethod(methodName, methodMap.asInstanceOf[Map[String, Any]])
+          resource.addMethod(methodName, method)
+        }
+      }
+    }
+    (resourceName, resource)
+  }
+
+  def processMethod(methodName: String, methodMap: Map[String, Any]): Method = {
+    val path = "/";
+    val httpMethod = Mapper.httpMethod(methodName.toUpperCase)
+    val method = new Method(path, httpMethod)
+    val parameterList = Utils.readMapEntity[List[Map[String, Any]]](methodMap, "parameters").getOrElse(List())
+    parameterList.foreach{
+      parameter => {
+        if (parameter.get("in").get.asInstanceOf[String] == "body") {
+          method.request = processMethodRequest(Option(parameter)).orNull
+          method.id = Utils.readMapEntity(methodMap, "id").orNull
+        } else {
+          val parameterName = parameter.get("name").get.asInstanceOf[String]
+          val parameterMap = processSubSchema(parameter, SchemaRefTypeParameter, parameterName)
+          method.addParameter(parameterName, parameterMap)
+        }
+      }
+    }
+    val responses = Utils.readMapEntity[Map[String, Any]](methodMap, "responses").get
+    responses.foreach{
+      case (statusCode:String, responseMap:Map[String,Any]) => {
+        if (statusCode != "default") {              //TODO: Default in status codes is yet to be mapped with a status code
+          method.addResponse(statusCode.toInt, processMethodResponse(Option(responseMap)).orNull)
+        }
+      }
+    }
+    method
+  }
+
+  def processMethodRequest(requestMap:Option[Map[String, Any]]) : Option[SchemaKey] ={
+    requestMap match {
+      case Some(map) => Option(processSubSchema(map, SchemaRefTypeCore, null))
+      case None => None
+    }
+  }
+
+  def processMethodResponse(responseMap:Option[Map[String, Any]]): Option[SchemaKey] = {
+    responseMap match {
+      case Some(map) => Option(processSubSchema(map, SchemaRefTypeCore, null))
+      case None => None
+    }
   }
 
   override def processParameter(map: Map[String, Any], schemaRefType: SchemaRefType, parameterName: String) ={
