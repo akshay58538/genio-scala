@@ -176,7 +176,7 @@ class SpecSwagger(parsedSpec: Map[String, Any]) extends ServiceSpec with Service
 
   def processMethodRequest(requestMap:Option[Map[String, Any]]) : Option[SchemaKey] ={
     requestMap match {
-      case Some(map) => Option(processSubSchema(map, SchemaRefTypeCore, null))
+      case Some(map) => Option(processSubSchema(map.get("schema").get.asInstanceOf[Map[String, Any]], SchemaRefTypeCore, null))
       case None => None
     }
   }
