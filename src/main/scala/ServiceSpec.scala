@@ -54,10 +54,6 @@ case object SchemaRefTypeArrayItem extends SchemaRefType
 case object SchemaRefTypeExternalFile extends SchemaRefType
 case object SchemaRefTypeExternalURL extends SchemaRefType
 
-sealed abstract class ResourceRefType
-case object ResourceRefTypeCore extends ResourceRefType
-case object ResourceRefTypeSub extends ResourceRefType
-
 class Schema(
               var schemaType:SchemaType,
               var format:FormatType = null,
@@ -88,9 +84,7 @@ class Schema(
 }
 
 class Method(
-              var path:String,
               var httpMethod: HttpMethod,
-              var id:String = "",
               val parameters:mutable.Map[String, Parameter] = new mutable.HashMap[String, Parameter](),
               var request:SchemaKey = null,
               val responses:mutable.Map[Int, SchemaKey] = new mutable.HashMap[Int, SchemaKey]()
@@ -125,17 +119,20 @@ class Method(
   }
 }
 
-class Resource(
-                var path:String,
-                val subResources:mutable.Set[ResourceKey] = new mutable.HashSet[ResourceKey](),
-                val methods:mutable.Map[MethodKey, Method] = new mutable.HashMap[MethodKey, Method]()
-                ){
-  def addSubResource(resourceKey: ResourceKey): Unit ={
-    subResources.add(resourceKey)
+class Path(
+            val subPaths:mutable.Map[PathKey, Path] = new mutable.HashMap[PathKey, Path](),
+            val methods:mutable.Map[MethodKey, Method] = new mutable.HashMap[MethodKey, Method]()
+            ){
+  def addSubPath(pathKey: PathKey, path:Path): Unit ={
+    subPaths.put(pathKey, path)
   }
 
-  def removeResource(resourceKey: ResourceKey): Unit ={
-    subResources.remove(resourceKey)
+  def getSubPath(pathKey: PathKey): Option[Path] ={
+    subPaths.get(pathKey)
+  }
+
+  def removeSubPath(pathKey: PathKey): Unit ={
+    subPaths.remove(pathKey)
   }
 
   def addMethod(methodKey: MethodKey, method: Method): Unit ={
@@ -173,15 +170,14 @@ trait ServiceSpecProcessor extends ServiceSpec{
     processServiceRootUrl()
     processSchemas()
     processParameters()
-    processResources()
+    processPaths()
   }
 
   def processServiceName()
   def processServiceBasePath()
   def processServiceRootUrl()
-  def processResources()
+  def processPaths()
   def schemaMapRef():Map[String, Any]
-  def resourcesMapRef():Map[String, Any]
   def processParameter(map: Map[String, Any], schemaRefType: SchemaRefType, parameterName: String)
 
   def parametersMapRef():Map[String, Any] ={
@@ -350,7 +346,7 @@ trait ServiceSpec{
   var basePath:String = null
   var rootUrl:String = null
   val schemas:mutable.Map[SchemaKey, Schema] = new mutable.HashMap[SchemaKey, Schema]()
-  val resources:mutable.Map[ResourceKey, Resource] = new mutable.HashMap[ResourceKey, Resource]()
+  val paths:mutable.Map[PathKey, Path] = new mutable.HashMap[PathKey, Path]()
 
   def getSchema(schemaKey: SchemaKey): Option[Schema] ={
     schemas.get(schemaKey)
@@ -364,21 +360,21 @@ trait ServiceSpec{
     schemas.remove(schemaKey)
   }
 
-  def getResource(resourceKey: ResourceKey): Option[Resource] ={
-    resources.get(resourceKey)
+  def getPath(pathKey: PathKey): Option[Path] ={
+    paths.get(pathKey)
   }
 
-  def addResource(resourceKey: ResourceKey, resource: Resource) ={
-    resources.put(resourceKey, resource)
+  def addResource(pathKey: PathKey, path:Path) ={
+    paths.put(pathKey, path)
   }
 
-  def removeResource(resourceKey: ResourceKey) ={
-    resources.remove(resourceKey)
+  def removePath(pathKey: PathKey) ={
+    paths.remove(pathKey)
   }
 
   override def toString: String = {
     implicit val formats = DefaultFormats
-    "ServiceName: " + name + "\nServiceRoot: " + rootUrl + "\nServiceBasePath: " + basePath + "\nSchemas: " + write(schemas) + "\nResources: " + write(resources)
+    "ServiceName: " + name + "\nServiceRoot: " + rootUrl + "\nServiceBasePath: " + basePath + "\nSchemas: " + write(schemas) + "\nPaths: " + write(paths)
   }
 }
 

@@ -7,11 +7,11 @@ object Main extends App {
   var r = new Reader()
   r.readSpec("/swagger.json") match {
     case (SpecTypeGDD, parsedSpec) => {
-      val gddService = new SpecGDD(parsedSpec)
+      val gddService:ServiceSpec = new SpecGDD(parsedSpec)
       println(gddService)
     }
     case (SpecTypeSwagger, parsedSpec) => {
-      val swaggerService = new SpecSwagger(parsedSpec)
+      val swaggerService:ServiceSpec = new SpecSwagger(parsedSpec)
       println(swaggerService)
     }
     case (_, _) => {

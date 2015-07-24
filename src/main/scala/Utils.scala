@@ -67,17 +67,6 @@ object Utils {
     }
   }
 
-  def keyForResourceRef(resourceRefType:ResourceRefType, suggestedKey:String): String ={
-    var key = suggestedKey
-    if(key == null || key.isEmpty){
-      key = generateKey()
-    }
-    resourceRefType match {
-      case ResourceRefTypeCore => "R-" + key
-      case ResourceRefTypeSub => "SR-" + key
-    }
-  }
-
   private def generateKey(): String ={
     Random.alphanumeric.take(5).mkString
   }
